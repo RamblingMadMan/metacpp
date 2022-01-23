@@ -449,6 +449,9 @@ namespace metapp{
 		template<typename Class>
 		struct class_info_data;
 
+		template<typename Enum, std::size_t Idx>
+		struct enum_value_info_data;
+
 		template<typename Enum>
 		struct enum_info_data;
 	}
@@ -464,23 +467,24 @@ namespace metapp{
 
 	template<typename Ent, std::size_t Idx>
 	struct attrib_info{
+		using args = typename detail::attrib_info_data<Ent, Idx>::args;
+
 		static constexpr std::string_view scope = detail::attrib_info_data<Ent, Idx>::scope;
 		static constexpr std::string_view name = detail::attrib_info_data<Ent, Idx>::name;
-
-		using args = typename detail::attrib_info_data<Ent, Idx>::args;
 	};
 
 	template<typename Ent, std::size_t Idx>
 	struct param_info{
-		static constexpr std::string_view name = detail::param_info_data<Ent, Idx>::name;
-
 		using type = typename detail::param_info_data<Ent, Idx>::type;
+
+		static constexpr std::string_view name = detail::param_info_data<Ent, Idx>::name;
 	};
 
 	template<typename Class, std::size_t Idx>
 	struct class_base_info{
-		static constexpr access_kind access = detail::class_base_info_data<Class, Idx>::access;
 		using type = typename detail::class_base_info_data<Class, Idx>::type;
+
+		static constexpr access_kind access = detail::class_base_info_data<Class, Idx>::access;
 	};
 
 	template<typename Class, std::size_t Idx>
@@ -507,16 +511,14 @@ namespace metapp{
 
 	template<typename Class, std::size_t Idx>
 	struct class_method_info{
-		static constexpr std::string_view name = detail::class_method_info_data<Class, Idx>::name;
-		static constexpr bool is_virtual = detail::class_method_info_data<Class, Idx>::is_virtual;
-		static constexpr auto ptr = detail::class_method_info_data<Class, Idx>::ptr;
-
-		static constexpr std::size_t num_params = detail::class_method_info_data<Class, Idx>::num_params;
-
 		using attributes = typename detail::class_info_data<Class>::attributes;
 		using result = typename detail::class_method_info_data<Class, Idx>::result;
 		using param_types = typename detail::class_method_info_data<Class, Idx>::param_types;
 		using params = typename detail::class_method_info_data<Class, Idx>::params;
+
+		static constexpr std::string_view name = detail::class_method_info_data<Class, Idx>::name;
+		static constexpr bool is_virtual = detail::class_method_info_data<Class, Idx>::is_virtual;
+		static constexpr auto ptr = detail::class_method_info_data<Class, Idx>::ptr;
 	};
 
 	struct ignore{
@@ -646,14 +648,48 @@ namespace metapp{
 	template<typename Class>
 	using methods = typename class_info<Class>::methods;
 
+	template<typename Enum, std::size_t Idx>
+	struct enum_value_info{
+		static constexpr std::string_view name = detail::enum_value_info_data<Enum, Idx>::name;
+		static constexpr std::uint64_t value = detail::enum_value_info_data<Enum, Idx>::value;
+	};
+
 	template<typename Enum>
 	struct enum_info{
-		static constexpr std::string_view name = detail::enum_info_data<Enum>::name;
-		static constexpr std::size_t num_values = detail::enum_info_data<Enum>::num_values;
-
-		using value_names = typename detail::enum_info_data<Enum>::value_names;
 		using values = typename detail::enum_info_data<Enum>::values;
+
+		static constexpr std::string_view name = detail::enum_info_data<Enum>::name;
 	};
+
+	namespace detail{
+		template<typename Enum, typename Values>
+		struct get_value_helper;
+
+		template<typename Enum>
+		struct get_value_helper<Enum, types<>>{
+			static constexpr Enum get(const std::string_view name){
+				throw std::logic_error("enum does not contain value by that name");
+			}
+		};
+
+		template<typename Enum, typename Value, typename ... Values>
+		struct get_value_helper<Enum, types<Value, Values...>>{
+			static constexpr Enum get(const std::string_view name){
+				if(Value::name == name){
+					return static_cast<Enum>(Value::value);
+				}
+				else{
+					return get_value_helper<Enum, types<Values...>>::get(name);
+				}
+			}
+		};
+	}
+
+	template<typename Enum>
+	inline constexpr Enum get_value(const std::string_view name){
+		using info = enum_info<Enum>;
+		return detail::get_value_helper<Enum, typename info::values>::get(name);
+	}
 
 	template<typename Enum>
 	inline constexpr std::size_t num_enum_values = enum_info<Enum>::num_values;

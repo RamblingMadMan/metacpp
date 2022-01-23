@@ -68,6 +68,12 @@ class example{
 
         std::tuple<int, float, char> method2();
 };
+
+enum class example_enum{
+	case_0 = 69,
+	case_1 = 420,
+	case_3 = 1337
+};
 ```
 
 ### `example.cpp`:
@@ -136,6 +142,24 @@ int main(int argc, char *argv[]){
             std::cout << ")";
         }
     });
+
+    using enum_info = meta::enum_info<example_enum>;
+
+    // get the name of an enum and if it is scoped
+    std::cout << (enum_info::is_scoped ? "Scoped " : "") << "Enum " << enum_info::name << "\n";
+
+    // iterate over all enum values
+    meta::for_all<meta::values<example_enum>>([]<class Value>{
+
+        // get the value name and unsigned integer representation
+        std::cout << "\t"	"Enum value '" << Value::name << "' == " << Value::value << "\n";
+
+    });
+
+    // get enum values from strings at compile time
+    static_assert(meta::get_value<example_enum>("case_0") == static_cast<example_enum>(69));
+    static_assert(meta::get_value<example_enum>("case_1") == static_cast<example_enum>(420));
+    static_assert(meta::get_value<example_enum>("case_2") == static_cast<example_enum>(1337));
 
     // --------------
     // C++20 Features

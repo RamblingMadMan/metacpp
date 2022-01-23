@@ -29,6 +29,12 @@ using namespace test;
 
 typedef TestClassNS TestTypedef;
 
+enum class [[special_enum]] TestEnum{
+	_0, _1 = 420, _2,
+	a, b = 69, c,
+	count
+};
+
 class TestClass{
 	public:
 		int m_0;

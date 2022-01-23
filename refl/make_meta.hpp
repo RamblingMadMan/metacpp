@@ -325,31 +325,66 @@ std::string make_class_meta(const ast::class_info &cls){
 
 	return fmt::format(
 		"{0}"
-		"template<{9}> struct metapp::detail::class_info_data<{1}>{{\n"
+		"template<{6}> struct metapp::detail::class_info_data<{1}>{{\n"
 		"\t"	"static constexpr std::string_view name = metapp::type_name<{1}>;\n"
-		"\t"	"static constexpr std::size_t num_bases = {3};\n"
-		"\t"	"static constexpr std::size_t num_ctors = {5};\n"
-		"\t"	"static constexpr std::size_t num_methods = {2};\n"
-		"\t"	"using attributes = metapp::types<{8}>;\n"
-		"\t"	"using bases = metapp::types<{10}>;\n"
-		"\t"	"using ctors = metapp::types<{6}>;\n"
-		"\t"	"using methods = metapp::types<{4}>;\n"
-		"\t"	"using members = metapp::types<{7}>;\n"
+		"\t"	"using attributes = metapp::types<{5}>;\n"
+		"\t"	"using bases = metapp::types<{7}>;\n"
+		"\t"	"using ctors = metapp::types<{3}>;\n"
+		"\t"	"using methods = metapp::types<{2}>;\n"
+		"\t"	"using members = metapp::types<{4}>;\n"
 		"}};\n",
 
 		output,
 		full_name,
-		cls.methods.size(),
-		cls.bases.size(),
-		methods_member_str, // 4
-
-		cls.ctors.size(),
+		methods_member_str,
 		ctors_member_str,
 		members_member_str,
-		attribs_member_str,
-		tmpl_params, // 9
 
+		attribs_member_str, // 6
+		tmpl_params,
 		bases_member_str
+	);
+}
+
+std::string make_enum_meta(const ast::enum_info &enm){
+	std::string output;
+
+	std::string values_member_str;
+
+	std::size_t value_idx = 0;
+
+	for(auto &&value : enm.values){
+		output += fmt::format(
+			"template<> struct metapp::detail::enum_value_info_data<{0}, {1}>{{\n"
+			"\t"	"static constexpr std::string_view name = \"{2}\";\n"
+			"\t"	"static constexpr std::uint64_t value = {3};\n"
+			"}};\n"
+			"\n",
+			enm.name, value_idx, value.name, value.value
+		);
+
+		values_member_str += fmt::format(
+			",\n"
+			"\t\t"	"metapp::enum_value_info<{0}, {1}>",
+			enm.name, value_idx++
+		);
+	}
+
+	if(!values_member_str.empty()){
+		values_member_str.erase(0, 1);
+		values_member_str += "\n\t";
+	}
+
+	return fmt::format(
+		"{0}"
+		"template<> struct metapp::detail::enum_info_data<{1}>{{\n"
+		"\t"	"using values = metapp::types<{3}>;\n"
+		"\t"	"static constexpr bool is_scoped = {2};\n"
+		"}};\n",
+		output,
+		enm.name,
+		enm.is_scoped ? "true" : "false",
+		values_member_str
 	);
 }
 
@@ -358,6 +393,11 @@ std::string make_namespace_meta(const ast::namespace_info &ns){
 
 	for(auto &&cls : ns.classes){
 		output += make_class_meta(*cls.second);
+		output += "\n";
+	}
+
+	for(auto &&enm : ns.enums){
+		output += make_enum_meta(*enm.second);
 		output += "\n";
 	}
 

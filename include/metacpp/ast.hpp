@@ -65,7 +65,7 @@ namespace astpp{
 	};
 
 	enum class entity_kind{
-		class_, function, namespace_, type, type_alias,
+		class_, enum_, function, namespace_, type, type_alias,
 
 		template_param,
 
@@ -73,7 +73,9 @@ namespace astpp{
 		class_constructor,
 		class_destructor,
 		class_member,
-		class_method
+		class_method,
+
+		enum_value
 	};
 
 	enum class access_kind{
@@ -183,6 +185,21 @@ namespace astpp{
 		const class_destructor_info *dtor = nullptr;
 	};
 
+	struct enum_value_info: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::enum_value; }
+
+		std::string name;
+		std::uint64_t value;
+	};
+
+	struct enum_info: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::enum_; }
+
+		bool is_scoped;
+
+		std::vector<enum_value_info> values;
+	};
+
 	struct function_info: entity_info{
 		entity_kind kind() const noexcept override{ return entity_kind::function; }
 	};
@@ -197,12 +214,13 @@ namespace astpp{
 		entity_kind kind() const noexcept override{ return entity_kind::namespace_; }
 
 		std::unordered_map<std::string, class_info*> classes;
+		std::unordered_map<std::string, enum_info*> enums;
 		std::unordered_map<std::string, std::vector<function_info*>> functions;
 		std::unordered_map<std::string, namespace_info*> namespaces;
 		std::unordered_map<std::string, type_alias_info*> aliases;
 	};
 
-	using entity = std::variant<class_info, function_info, type_alias_info, namespace_info>;
+	using entity = std::variant<class_info, enum_info, function_info, type_alias_info, namespace_info>;
 
 	struct info_map{
 		namespace_info global;

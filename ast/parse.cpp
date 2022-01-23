@@ -454,6 +454,30 @@ namespace astpp::detail{
 		return ret;
 	}
 
+	std::optional<enum_info> parse_enum_decl(const fs::path &path, info_map &infos, clang::cursor c){
+		if(c.kind() != CXCursor_EnumDecl){
+			return std::nullopt;
+		}
+
+		enum_info ret;
+
+		ret.name = c.spelling();
+		ret.is_scoped = clang_EnumDecl_isScoped(c);
+
+		c.visit_children([&](clang::cursor value_c, clang::cursor){
+			if(value_c.kind() != CXCursor_EnumConstantDecl){
+				return;
+			}
+
+			enum_value_info value;
+			value.name = value_c.spelling();
+			value.value = clang_getEnumConstantDeclUnsignedValue(value_c);
+			ret.values.emplace_back(std::move(value));
+		});
+
+		return ret;
+	}
+
 	std::optional<function_info> parse_function_decl(const fs::path &path, info_map &infos, clang::cursor c){
 		if(c.kind() != CXCursor_FunctionDecl){
 			return std::nullopt;
@@ -495,6 +519,11 @@ namespace astpp::detail{
 					auto ptr = store_info(cls);
 					ret = ptr;
 					ns.classes[ptr->name] = ptr;
+				},
+				[&](enum_info &enm){
+					auto ptr = store_info(enm);
+					ret = ptr;
+					ns.enums[ptr->name] = ptr;
 				},
 				[&](namespace_info &child_ns){
 					auto ptr = store_info(child_ns);
@@ -568,6 +597,9 @@ namespace astpp::detail{
 	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c){
 		if(auto class_decl = detail::parse_class_decl(path, infos, c); class_decl){
 			return std::make_optional<entity>(std::move(*class_decl));
+		}
+		else if(auto enum_decl = detail::parse_enum_decl(path, infos, c); enum_decl){
+			return std::make_optional<entity>(std::move(*enum_decl));
 		}
 		else if(auto fn_decl = detail::parse_function_decl(path, infos, c); fn_decl){
 			return std::make_optional<entity>(std::move(*fn_decl));

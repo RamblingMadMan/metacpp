@@ -95,5 +95,12 @@ int main(int argc, char *argv[]){
 	static_assert(meta::get_t<test_attrib::args, 3>::value == R"(4.0)");
 	static_assert(meta::get_t<test_attrib::args, 4>::value == R"(5.f)");
 
+	static_assert(meta::get_value<TestEnum>("_0") == TestEnum::_0);
+	static_assert(meta::get_value<TestEnum>("_1") == TestEnum::_1);
+	static_assert(meta::get_value<TestEnum>("_2") == TestEnum::_2);
+	static_assert(meta::get_value<TestEnum>("a") == TestEnum::a);
+	static_assert(meta::get_value<TestEnum>("b") == TestEnum::b);
+	static_assert(meta::get_value<TestEnum>("c") == TestEnum::c);
+
 	return EXIT_SUCCESS;
 }

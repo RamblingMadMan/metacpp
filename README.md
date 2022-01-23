@@ -37,8 +37,8 @@ From within your projects main `CMakeLists.txt` add the following before any tar
 
 ```cmake
 FetchContent_Declare(
-	metapp
-	GIT_REPOSITORY https://github.com/RamblingMadMan/metacpp.git
+    metapp
+    GIT_REPOSITORY https://github.com/RamblingMadMan/metacpp.git
 )
 
 FetchContent_MakeAvailable(metapp)
@@ -61,11 +61,11 @@ target_reflect(<target>)
 #include <tuple>
 
 class example{
-	public:
-		void method1(std::string_view s) const noexcept;
-		void method1(const std::string &str) noexcept;
+    public:
+        void method1(std::string_view s) const noexcept;
+        void method1(const std::string &str) noexcept;
 
-		std::tuple<int, float, char> method2();
+        std::tuple<int, float, char> method2();
 };
 ```
 
@@ -77,48 +77,48 @@ class example{
 #include "example.meta.h"
 
 int main(int argc, char *argv[]){
-	// --------------
-	// C++17 Features
-	// --------------
+    // --------------
+    // C++17 Features
+    // --------------
 
-	// iterate over all public class methods
-	meta::for_all<meta::methods<example>>([]<class Method>{
+    // iterate over all public class methods
+    meta::for_all<meta::methods<example>>([]<class Method>{
 
-		// get method names
-		std::cout << "Method " << Method::name << "\n";
+        // get method names
+        std::cout << "Method " << Method::name << "\n";
 
-		// as well as information about the method
-		std::cout << "\t"	"pointer type: " << meta::type_name<Method::ptr_type> << "\n";
+        // as well as information about the method
+        std::cout << "\t"  "pointer type: " << meta::type_name<Method::ptr_type> << "\n";
 
-		// iterate over every parameter of a method
-		meta::for_all<typename Method::params>([]<class Param>{
+        // iterate over every parameter of a method
+        meta::for_all<typename Method::params>([]<class Param>{
 
-			// get parameter types
-			using param_type = typename Param::type;
+            // get parameter types
+            using param_type = typename Param::type;
 
-			// and names
-			std::cout << "\t"	"parameter '" << Param::name << "': " << meta::type_name<param_type> << "\n";
+            // and names
+            std::cout << "\t"  "parameter '" << Param::name << "': " << meta::type_name<param_type> << "\n";
 
-		});
+        });
 
-		// and don't forget the result type
-		std::cout << "\t"	"result type: " << meta::type_name<typename Method::result> << "\n";
-	});
+        // and don't forget the result type
+        std::cout << "\t"  "result type: " << meta::type_name<typename Method::result> << "\n";
+    });
 
-	// alias the info for the example class
-	using example_info = meta::class_info<example>;
+    // alias the info for the example class
+    using example_info = meta::class_info<example>;
 
-	// --------------
-	// C++20 Features
-	// --------------
+    // --------------
+    // C++20 Features
+    // --------------
 
-	// do compile-time queries on class info
-	static_assert(example_info::query_method<"method1">::size == 2);
+    // do compile-time queries on class info
+    static_assert(example_info::query_method<"method1">::size == 2);
 
-	// specify a signature
-	static_assert(example_info::query_method<"method1", void(std::string_view)>::size == 1);
+    // specify a signature
+    static_assert(example_info::query_method<"method1", void(std::string_view)>::size == 1);
 
-	// or just part of one
-	static_assert(example_info::query_method<"method2", meta::ignore()>::size == 1);
+    // or just part of one
+    static_assert(example_info::query_method<"method2", meta::ignore()>::size == 1);
 }
 ```

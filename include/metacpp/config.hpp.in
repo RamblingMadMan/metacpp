@@ -1,0 +1,22 @@
+#ifndef METACPP_CONFIG_HPP
+#define METACPP_CONFIG_HPP 1
+
+#ifdef __GNUC__
+#define REFLCPP_EXPORT_SYMBOL __attribute__((visibility ("default")))
+#define REFLCPP_IMPORT_SYMBOL
+#else
+#define REFLCPP_EXPORT_SYMBOL __declspec(dllexport)
+#define REFLCPP_IMPORT_SYMBOL __declspec(dllimport)
+#endif
+
+#ifndef REFLCPP_IMPLEMENTATION
+#define REFLCPP_API REFLCPP_IMPORT_SYMBOL
+#else
+#define REFLCPP_API REFLCPP_EXPORT_SYMBOL
+#endif
+
+#ifndef METACPP_REFL_NAMESPACE
+#define METACPP_REFL_NAMESPACE refl
+#endif
+
+#endif // !METACPP_CONFIG_HPP

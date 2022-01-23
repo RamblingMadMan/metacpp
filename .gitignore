@@ -1,0 +1,11 @@
+# in-tree builds
+build
+build-*
+
+# Desktop Environment related junk
+*.kate-swp
+
+# IDE/Compiler related junk
+.cache
+.kdev4
+*.kdev4

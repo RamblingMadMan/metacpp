@@ -1,0 +1,386 @@
+#ifndef METACPP_AST_CLANG_HPP
+#define METACPP_AST_CLANG_HPP 1
+
+#include "metacpp/ast.hpp"
+
+#include "clang-c/Index.h"
+#include "clang-c/CXCompilationDatabase.h"
+
+#include "fmt/format.h"
+
+#include <functional>
+
+namespace astpp::clang{
+	namespace fs = std::filesystem;
+
+	template<typename T, auto DestroyFn>
+	class handle{
+		public:
+			handle(const handle&) = delete;
+
+			handle(handle &&other)
+				: m_handle(other.m_handle)
+			{
+				other.m_handle = nullptr;
+			}
+
+			virtual ~handle(){
+				if(m_handle) DestroyFn(m_handle);
+			}
+
+			handle &operator=(const handle&) = delete;
+
+			handle &operator=(handle &&other) noexcept{
+				if(this != &other){
+					auto old_handle = std::exchange(m_handle, other.m_handle);
+
+					other.m_handle = nullptr;
+
+					if(old_handle){
+						DestroyFn(old_handle);
+					}
+				}
+
+				return *this;
+			}
+
+			operator T() const noexcept{ return m_handle; }
+			operator bool() const noexcept{ return m_handle != nullptr; }
+
+		protected:
+			handle(T handle_) noexcept
+			: m_handle(handle_){}
+
+			void set_handle(T handle_){
+				auto old_handle = std::exchange(m_handle, handle_);
+				if(old_handle) DestroyFn(old_handle);
+			}
+
+		private:
+			T m_handle;
+	};
+
+	class index: public handle<CXIndex, clang_disposeIndex>{
+		public:
+			index(bool excludeDeclarationsFromPCH, bool displayDiagnostics)
+			: handle(clang_createIndex(excludeDeclarationsFromPCH, displayDiagnostics))
+			{}
+
+			index(): index(false, false){}
+	};
+
+	namespace detail{
+		template<typename T>
+		void null_destroy(T){}
+
+		inline std::string convert_str(CXString str){
+			std::string ret = clang_getCString(str);
+			clang_disposeString(str);
+			return ret;
+		}
+	}
+
+	class token{
+		public:
+			token() = default;
+
+			token(const token&) = default;
+
+			operator CXToken() const noexcept{ return m_tok; }
+
+			bool is_valid() const noexcept{ return m_tu; }
+
+			CXTokenKind kind() const noexcept{ return clang_getTokenKind(m_tok); }
+
+			std::string str() const noexcept{
+				return is_valid() ? detail::convert_str(clang_getTokenSpelling(m_tu, m_tok)) : "";
+			}
+
+		private:
+			token(CXTranslationUnit tu, CXToken tok) noexcept
+			: m_tu(tu), m_tok(tok){}
+
+			CXTranslationUnit m_tu = nullptr;
+			CXToken m_tok;
+
+			friend class token_iterator;
+	};
+
+	class token_iterator{
+		public:
+			token_iterator() = default;
+
+			token_iterator(const token_iterator&) = default;
+
+			token_iterator &operator=(const token_iterator&) = default;
+
+			bool is_valid() const noexcept{ return m_it; }
+
+			const token &operator*() const noexcept{
+				return m_val;
+			}
+
+			const token *operator->() const noexcept{
+				return &m_val;
+			}
+
+			token_iterator &operator++() noexcept{
+				if(m_it == m_end) return *this;
+				++m_it;
+				m_val = token(m_tu, *m_it);
+				return *this;
+			}
+
+			bool operator==(const token_iterator &other) const noexcept{
+				return m_tu == other.m_tu && m_it == other.m_it;
+			}
+
+			bool operator!=(const token_iterator &other) const noexcept{
+				return m_tu != other.m_tu || m_it != other.m_it;
+			}
+
+		private:
+			token_iterator(CXTranslationUnit tu, CXToken *it, CXToken *end_)
+			: m_tu(tu)
+			, m_it(it)
+			, m_end(end_)
+			, m_val(it == end_ ? token() : token(tu, *m_it))
+			{}
+
+			CXTranslationUnit m_tu = nullptr;
+			CXToken *m_it = nullptr, *m_end = nullptr;
+			token m_val;
+
+			friend class tokens;
+	};
+
+	class tokens{
+		public:
+			tokens(tokens &&other) noexcept
+			: m_tu(std::exchange(other.m_tu, nullptr))
+			, m_toks(std::exchange(other.m_toks, nullptr))
+			, m_num_toks(std::exchange(other.m_num_toks, 0))
+			{}
+
+			tokens(const tokens&) = delete;
+
+			~tokens(){
+				clang_disposeTokens(m_tu, m_toks, m_num_toks);
+			}
+
+			tokens &operator=(tokens &&other) noexcept{
+				if(this != &other){
+					if(m_toks) clang_disposeTokens(m_tu, m_toks, m_num_toks);
+
+					m_tu = std::exchange(other.m_tu, nullptr);
+					m_toks = std::exchange(other.m_toks, nullptr);
+					m_num_toks = std::exchange(other.m_num_toks, 0);
+				}
+
+				return *this;
+			}
+
+			tokens &operator=(const tokens&) = delete;
+
+			unsigned int num_tokens() const noexcept{ return m_num_toks; }
+
+			bool empty() const noexcept{ return m_num_toks == 0; }
+
+			std::size_t size() const noexcept{ return m_num_toks; }
+
+			auto begin() const noexcept{
+				return token_iterator(m_tu, m_toks, m_toks + m_num_toks);
+			}
+
+			auto end() const noexcept{
+				const auto end_ptr = m_toks + m_num_toks;
+				return token_iterator(m_tu, end_ptr, end_ptr);
+			}
+
+		private:
+			tokens(CXCursor c){
+				m_tu = clang_Cursor_getTranslationUnit(c);
+				auto extent = clang_getCursorExtent(c);
+
+				clang_tokenize(m_tu, extent, &m_toks, &m_num_toks);
+			}
+
+			CXTranslationUnit m_tu = nullptr;
+			CXToken *m_toks = nullptr;
+			unsigned int m_num_toks = 0;
+
+			friend class cursor;
+	};
+
+	class cursor{
+		public:
+			cursor(CXCursor c) noexcept
+			: m_handle(c){}
+
+			cursor(const cursor&) noexcept = default;
+
+			cursor &operator=(const cursor&) noexcept = default;
+
+			operator CXCursor() const noexcept{ return m_handle; }
+
+			CXCursorKind kind() const noexcept{ return clang_getCursorKind(m_handle); }
+
+			class tokens tokens() const noexcept{ return clang::tokens(m_handle); }
+
+			std::string spelling(){
+				return detail::convert_str(clang_getCursorSpelling(m_handle));
+			}
+
+			std::string kind_spelling(){
+				return detail::convert_str(clang_getCursorKindSpelling(kind()));
+			}
+
+			bool is_class_decl() const noexcept{
+				return clang_getCursorKind(m_handle) == CXCursor_ClassDecl;
+			}
+
+			bool is_attribute() const noexcept{
+				return clang_isAttribute(clang_getCursorKind(m_handle));
+			}
+
+			template<typename F, typename ... Args>
+			void visit_children(F &&f, Args &&... args){
+				using namespace std::placeholders;
+
+				auto f0 = std::bind(std::forward<F>(f), _1, _2, std::forward<Args>(args)...);
+
+				clang_visitChildren(
+					m_handle,
+					[](CXCursor c, CXCursor parent, CXClientData client_data){
+						auto &&f = *reinterpret_cast<decltype(f0)*>(client_data);
+						f(cursor(c), cursor(parent));
+						return CXChildVisit_Continue;
+					},
+					&f0
+				);
+			}
+
+		private:
+			CXCursor m_handle;
+	};
+
+	class compilation_database: public handle<CXCompilationDatabase, clang_CompilationDatabase_dispose>{
+		public:
+			explicit compilation_database(const fs::path &build_dir)
+				: handle(nullptr)
+			{
+				CXCompilationDatabase_Error db_err;
+				auto comp_db = clang_CompilationDatabase_fromDirectory(build_dir.c_str(), &db_err);
+
+				if(db_err != CXCompilationDatabase_NoError){
+					auto msg = fmt::format("Compilation database could not be loaded from directory '{}'", build_dir.c_str());
+					throw std::runtime_error(msg);
+				}
+
+				set_handle(comp_db);
+			}
+
+			compilation_database(compilation_database&&) = default;
+
+			std::vector<std::string> file_options(const fs::path &path) const{
+				std::vector<std::string> ret;
+
+				auto abs_path = fs::absolute(path);
+
+				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, abs_path.c_str());
+				if(cmds){
+					auto num_commands = clang_CompileCommands_getSize(cmds);
+					ret.reserve(num_commands);
+
+					for(unsigned int i = 0; i < num_commands; i++){
+						auto cmd = clang_CompileCommands_getCommand(cmds, i);
+						if(!cmd){
+							continue;
+						}
+
+						auto num_args = clang_CompileCommand_getNumArgs(cmd);
+
+						// always start from 1 and end 1 before the end
+						// head is compiler executable
+						// last is compiled file
+						for(unsigned int j = 1; j < (num_args - 1); j++){
+							auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
+							ret.emplace_back(std::move(arg));
+						}
+					}
+
+					std::fflush(stdout);
+
+					clang_CompileCommands_dispose(cmds);
+				}
+
+				return ret;
+			}
+	};
+
+	class translation_unit: public handle<CXTranslationUnit, clang_disposeTranslationUnit>{
+		public:
+			translation_unit()
+				: handle(nullptr)
+			{}
+
+			translation_unit(translation_unit&&) = default;
+
+			translation_unit(CXIndex index, const fs::path &path, const std::vector<std::string> &options = {})
+				: handle(nullptr)
+			{
+				const char *option_cstrs[64];
+
+				if(options.size() > 64){
+					throw std::runtime_error("internal error: buffer size too small, too many compile options");
+				}
+
+				for(std::size_t i = 0; i < options.size(); i++){
+					option_cstrs[i] = options[i].c_str();
+				}
+
+				const auto num_options = static_cast<unsigned int>(options.size());
+
+				CXTranslationUnit tu = nullptr;
+				auto parse_err = clang_parseTranslationUnit2(
+					index, path.c_str(),
+					option_cstrs, num_options,
+					nullptr, 0,
+					CXTranslationUnit_SkipFunctionBodies | CXTranslationUnit_KeepGoing,
+					&tu
+				);
+
+				switch(parse_err){
+					case CXError_Success: break;
+
+					case CXError_Failure:{
+						throw std::runtime_error("Failure in clang_parseTranslationUnit2");
+					}
+
+					case CXError_Crashed:{
+						throw std::runtime_error("libclang crashed while in clang_parseTranslationUnit2");
+					}
+
+					case CXError_InvalidArguments:{
+						throw std::runtime_error("clang_parseTranslationUnit2 detected that it's arguments violate the function contract");
+					}
+
+					case CXError_ASTReadError:{
+						throw std::runtime_error("An AST deserialization error occurred");
+					}
+
+					default:{
+						throw std::runtime_error("Unknown error in clang_parseTranslationUnit2");
+					}
+				}
+
+				set_handle(tu);
+			}
+
+			cursor get_cursor() const noexcept{
+				return clang_getTranslationUnitCursor(*this);
+			}
+	};
+}
+
+#endif // !METACPP_AST_CLANG_HPP

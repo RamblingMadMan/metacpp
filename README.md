@@ -6,8 +6,10 @@ Also included is a tool for generating the necessary meta and reflection informa
 
 ## Dependencies
 
+- CMake 3.21+
 - A C++17 compiler
 - Libclang
+- Boost system
 
 ## Including in a project
 

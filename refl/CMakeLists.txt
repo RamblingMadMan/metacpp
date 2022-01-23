@@ -1,6 +1,10 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 find_package(Boost REQUIRED COMPONENTS system)
 
-add_library(metacpp-refl STATIC make_meta.hpp refl.cpp)
+add_library(metacpp-refl SHARED make_meta.hpp refl.cpp)
 
 target_compile_features(metacpp-refl PUBLIC cxx_std_20)
 

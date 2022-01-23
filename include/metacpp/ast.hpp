@@ -21,6 +21,13 @@
 #include <unordered_map>
 #include <filesystem>
 
+#include "metacpp/config.hpp"
+
+/**
+ * @defgroup Ast AST parsing utilities.
+ * @{
+ */
+
 namespace astpp{
 	class attribute{
 		public:
@@ -204,10 +211,10 @@ namespace astpp{
 	info_map parse(const std::filesystem::path &path, const compile_info &info);
 }
 
-#ifndef METACPP_AST_NAMESPACE
-#define METACPP_AST_NAMESPACE ast
-#endif
-
 namespace METACPP_AST_NAMESPACE = astpp;
+
+/**
+ * @}
+ */
 
 #endif // !METACPP_AST_HPP

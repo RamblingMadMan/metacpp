@@ -19,6 +19,15 @@
 #include <string_view>
 #include <functional>
 
+#include "fmt/format.h"
+
+#include "metacpp/config.hpp"
+
+/**
+ * @defgroup Meta Metaprogramming utilities
+ * @{
+ */
+
 namespace metapp{
 	namespace detail{
 		template<std::size_t, typename...>
@@ -80,13 +89,22 @@ namespace metapp{
 		{};
 	}
 
+	/**
+	 * @brief Compile-time list of types.
+	 */
 	template<typename ... Ts>
 	struct types{
 		static constexpr auto size = sizeof...(Ts);
 
+		/**
+		 * @brief Retrieve a type by index.
+		 */
 		template<std::size_t I>
 		using type = typename detail::types_type_helper<I, Ts...>::type;
 
+		/**
+		 * @brief Check if the list contains a type.
+		 */
 		template<typename U>
 		static constexpr auto contains = detail::types_contains_helper<U, Ts...>::value;
 
@@ -101,19 +119,34 @@ namespace metapp{
 		constexpr bool operator!=(types<Ts...>) const noexcept{ return false; }
 	};
 
+	/**
+	 * @brief Convienience alias for 1-tuple of types.
+	 */
 	template<typename T>
 	using type = types<T>;
 
+	/**
+	 * @brief Convienience function for retrieving a type from a list by index.
+	 */
 	template<typename Types, std::size_t I = 0>
 	using get_t = typename Types::template type<I>;
 
+	/**
+	 * @brief Compile-time list of values.
+	 */
 	template<auto ... Xs>
 	struct values{
 		static constexpr auto size = sizeof...(Xs);
 
+		/**
+		 * @brief Retrieve a value by index.
+		 */
 		template<std::size_t I>
 		static constexpr auto value = detail::values_value_helper<I, Xs...>::value;
 
+		/**
+		 * @brief Check if the list contains a value.
+		 */
 		template<auto Y>
 		static constexpr auto contains = detail::values_contains_helper<Y, Xs...>::value;
 
@@ -128,15 +161,63 @@ namespace metapp{
 		constexpr bool operator!=(values<Xs...>) const noexcept{ return false; }
 	};
 
+	/**
+	 * @brief Convienience alias for 1-tuple of values.
+	 */
 	template<auto X>
 	using value = values<X>;
 
+	/**
+	 * @brief Convienience function for getting a value by index.
+	 */
 	template<typename Values, std::size_t I = 0>
 	inline constexpr auto get_v = Values::template value<I>;
 
+	namespace detail{
+		template<typename ... Ls>
+		struct join_helper;
+
+		template<typename ... Ts, typename ... Us>
+		struct join_helper<types<Ts...>, types<Us...>>{
+			using type = types<Ts..., Us...>;
+		};
+
+		template<typename L, typename T>
+		struct append_helper;
+
+		template<typename ... Ts, typename U>
+		struct append_helper<types<Ts...>, U>{
+			using type = types<Ts..., U>;
+		};
+	}
+
+	template<typename L, typename T>
+	using append = typename detail::append_helper<L, T>::type;
+
+	template<typename ... Ls>
+	using join = typename detail::join_helper<Ls...>::type;
+
+	/**
+	 * @brief Iterate all types in a type list.
+	 * @param f Template function to apply to each type.
+	 */
 	template<typename ... Ts, typename Fn>
 	void for_all(types<Ts...>, Fn &&f){
-		(std::forward<Fn>().template operator()<Ts>(), ...);
+		(std::forward<Fn>(f).template operator()<Ts>(), ...);
+	}
+
+	/**
+	 * @brief Iterate all values in a value list.
+	 * @param f Template function to apply to each value.
+	 */
+	template<auto ... Xs, typename Fn>
+	void for_all(values<Xs...>, Fn &&f){
+		(std::forward<Fn>().template operator()<Xs>(), ...);
+	}
+
+	template<typename Ts, typename Fn>
+	void for_all(Fn &&f){
+		for_all(Ts{}, std::forward<Fn>(f));
 	}
 
 	namespace detail{
@@ -160,6 +241,9 @@ namespace metapp{
 	}
 
 #if __cplusplus >= 202002L
+	/**
+	 * @brief Compile-time constant string.
+	 */
 	template<std::size_t N>
 	struct fixed_str{
 		public:
@@ -169,13 +253,35 @@ namespace metapp{
 
 			constexpr fixed_str(const fixed_str &other) noexcept = default;
 
-			constexpr operator std::string_view() const noexcept{ return data; }
+			constexpr operator std::string_view() const noexcept{ return std::string_view(data, size); }
 
 			constexpr auto substr(std::size_t from, std::size_t len) const noexcept{
 				constexpr std::size_t from_clamped = std::min(N, from);
 				constexpr std::size_t rem = N - from_clamped;
 				constexpr std::size_t len_clamped = std::min(rem, len);
 				return fixed_str<len_clamped>(std::make_index_sequence<len_clamped>(), from_clamped, data);
+			}
+
+			template<std::size_t M>
+			bool operator==(const fixed_str<M> &other) const noexcept{
+				if constexpr(M == N){
+					if(this == &other) return true;
+					return std::string_view(*this) == std::string_view(other);
+				}
+				else{
+					return false;
+				}
+			}
+
+			template<std::size_t M>
+			bool operator!=(const fixed_str<M> &other) const noexcept{
+				if constexpr(M == N){
+					if(this != &other){
+						return std::string_view(*this) != std::string_view(other);
+					}
+				}
+
+				return true;
 			}
 
 			static constexpr std::size_t size = N;
@@ -232,6 +338,9 @@ namespace metapp{
 		}
 	}
 
+	/**
+	 * @brief Get the pretty name of a type.
+	 */
 	template<typename T>
 	inline constexpr std::string_view type_name = detail::get_type_name<T>();
 
@@ -311,40 +420,62 @@ namespace metapp{
 		using params = typename detail::class_method_info_data<Class, Idx>::params;
 	};
 
-	struct ignore_t{
+	struct ignore{
 		template<typename T>
 		constexpr bool operator==(T&&) const noexcept{ return true; }
 
 		template<typename T>
 		constexpr bool operator!=(T&&) const noexcept{ return false; }
-	} inline constexpr ignore;
+	};
 
 #if __cplusplus >= 202002L
 	namespace detail{
-		template<typename Signature, auto Name, typename ... Results>
+		template<typename Signature, auto Name, typename Infos, typename ... Results>
 		struct query_method_helper;
 
-		template<typename Ret, typename ... Params, fixed_str Name, typename ... Results>
-		struct query_method_helper<Ret(Params...), Name, Results...>{
-			template<typename MethodInfo, typename ... MethodInfos>
-			static constexpr auto query(types<MethodInfo, MethodInfos...>){
-				if constexpr(MethodInfo::name == Name){
-					using method_param_types = typename MethodInfo::param_types;
-					using method_result = typename MethodInfo::result;
+		template<fixed_str Name, typename MethodInfo, typename ... MethodInfos, typename ... Results>
+		struct query_method_helper<ignore, Name, types<MethodInfo, MethodInfos...>, Results...>
+			: std::conditional_t<
+				MethodInfo::name == Name,
+				query_method_helper<ignore, Name, types<MethodInfos...>, Results..., MethodInfo>,
+				query_method_helper<ignore, Name, types<MethodInfos...>, Results...>
+			>
+		{};
 
-					if(types<Params...>{} == types<ignore_t>{} || method_param_types{} == types<Params...>{}){
-						if constexpr(std::is_same_v<Ret, ignore_t> || std::is_same_v<Ret, method_result>){
-							return query_method_helper<Ret(Params...), Name, Results..., MethodInfo>::query(types<MethodInfos...>{});
+		template<
+			typename Ret, typename ... Params,
+			fixed_str Name,
+			typename MethodInfo, typename ... MethodInfos,
+			typename ... Results
+		>
+		struct query_method_helper<Ret(Params...), Name, types<MethodInfo, MethodInfos...>, Results...>{
+			private:
+				static constexpr auto dummy_query(){
+					if constexpr(MethodInfo::name == Name){
+						if constexpr(std::is_same_v<Ret, ignore> || std::is_same_v<Ret, typename MethodInfo::result>){
+							if constexpr(types<Params...>{} == types<ignore>{} || types<Params...>{} == typename MethodInfo::param_types{}){
+								return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results..., MethodInfo>::type{};
+							}
+							else{
+								return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
+							}
 						}
+						else{
+							return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
+						}
+					}
+					else{
+						return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
 					}
 				}
 
-				return types<Results...>{};
-			}
+			public:
+				using type = decltype(dummy_query());
+		};
 
-			static constexpr auto query(types<>){
-				return types<Results...>{};
-			}
+		template<typename Signature, fixed_str Name, typename ... Results>
+		struct query_method_helper<Signature, Name, types<>, Results...>{
+			using type = types<Results...>;
 		};
 	}
 #endif
@@ -362,10 +493,15 @@ namespace metapp{
 		using members = typename detail::class_info_data<Class>::members;
 
 #if __cplusplus >= 202002L
-		template<fixed_str Name, typename Signature = ignore_t(ignore_t)>
-		using query_method = decltype(detail::query_method_helper<Signature, Name>::query(methods{}));
+		template<fixed_str Name, typename Signature = ignore>
+		using query_method = typename detail::query_method_helper<Signature, Name, methods>::type;
 #endif
 	};
+
+	#if __cplusplus >= 202002L
+	template<typename Class, fixed_str Name, typename Signature = ignore>
+	using query_method = typename detail::query_method_helper<Signature, Name, typename class_info<Class>::methods>::type;
+	#endif
 
 	template<typename Class, std::size_t Idx>
 	using class_ctor = get_t<typename class_info<Class>::ctors, Idx>;
@@ -375,6 +511,9 @@ namespace metapp{
 
 	template<typename Class, std::size_t Idx>
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;
+
+	template<typename Class>
+	using methods = typename class_info<Class>::methods;
 
 	template<typename Enum>
 	struct enum_info{
@@ -392,10 +531,10 @@ namespace metapp{
 	inline constexpr std::size_t enum_value = get_v<typename enum_info<Enum>::values, Idx>;
 }
 
-#ifndef METACPP_META_NAMESPACE
-#define METACPP_META_NAMESPACE meta
-#endif
-
 namespace METACPP_META_NAMESPACE = metapp;
+
+/**
+ * @}
+ */
 
 #endif // !METACPP_META_HPP

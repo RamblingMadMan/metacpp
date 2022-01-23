@@ -16,8 +16,14 @@
 #ifndef METACPP_REFL_HPP
 #define METACPP_REFL_HPP 1
 
-#include "metacpp/config.hpp"
+#include <cstdlib>
+
 #include "meta.hpp"
+
+/**
+ * @defgroup Refl Run-time reflection utilities
+ * @{
+ */
 
 namespace reflpp{
 	namespace detail{
@@ -88,6 +94,7 @@ namespace reflpp{
 			virtual std::string_view name() const noexcept = 0;
 			virtual std::size_t size() const noexcept = 0;
 			virtual std::size_t alignment() const noexcept = 0;
+			virtual void destroy(void *p) const noexcept = 0;
 		};
 
 		struct class_member_helper{};
@@ -125,6 +132,7 @@ namespace reflpp{
 			std::string_view name() const noexcept override{ return metapp::type_name<T>; }
 			std::size_t size() const noexcept override{ return sizeof(T); }
 			std::size_t alignment() const noexcept override{ return alignof(T); }
+			void destroy(void *p) const noexcept override{ std::destroy_at(reinterpret_cast<T*>(p)); }
 		};
 
 		template<typename T>
@@ -142,8 +150,112 @@ namespace reflpp{
 
 		using type_export_fn = type_info(*)();
 	}
+
+	class alignas(16) value{
+		public:
+			value() = default;
+
+			template<typename T, typename ... Args>
+			value(metapp::type<T>, Args &&... args)
+				: m_type(reflect<T>())
+			{
+				if constexpr(sizeof(T) <= 16 && alignof(T) <= 16){
+					new(m_storage.bytes) T(std::forward<Args>(args)...);
+				}
+				else{
+					m_storage.pointer = std::aligned_alloc(alignof(T), sizeof(T));
+					new(m_storage.pointer) T(std::forward<Args>(args)...);
+				}
+			}
+
+			value(const value&) = delete;
+
+			value(value &&other) noexcept
+				: m_type(std::exchange(other.m_type, nullptr))
+			{
+				if(m_type->size() <= 16 && m_type->alignment() <= 16){
+					std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
+				}
+				else{
+					m_storage.pointer = other.m_storage.pointer;
+					other.m_storage.pointer = nullptr;
+				}
+			}
+
+			~value(){
+				destroy();
+			}
+
+			value &operator=(const value&) = delete;
+
+			value &operator=(value &&other) noexcept{
+				if(this != &other){
+					destroy();
+
+					m_type = std::exchange(other.m_type, nullptr);
+
+					if(m_type->size() <= 16 && m_type->alignment() <= 16){
+						std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
+					}
+					else{
+						m_storage.pointer = other.m_storage.pointer;
+						other.m_storage.pointer = nullptr;
+					}
+				}
+
+				return *this;
+			}
+
+			bool is_valid() const noexcept{ return !!m_type; }
+
+			template<typename T>
+			T *as() noexcept{
+				if(!is_valid() || m_type != reflect<T>()){
+					return nullptr;
+				}
+				else{
+					return reinterpret_cast<T*>(m_storage.pointer);
+				}
+			}
+
+			template<typename T>
+			const T *as() const noexcept{
+				if(!is_valid() || m_type != reflect<T>()){
+					return nullptr;
+				}
+				else{
+					return reinterpret_cast<const T*>(m_storage.pointer);
+				}
+			}
+
+		private:
+			void destroy(){
+				if(!m_type) return;
+
+				if(m_type->size() <= 16 && m_type->alignment() <= 16){
+					m_type->destroy(m_storage.bytes);
+				}
+				else{
+					m_type->destroy(m_storage.pointer);
+					std::free(m_storage.pointer);
+				}
+
+				m_type = nullptr;
+			}
+
+			type_info m_type = nullptr;
+
+			union storage_t{
+				void *pointer;
+				unsigned char bytes alignas(16)[16];
+			} m_storage;
+	};
 }
 
 namespace METACPP_REFL_NAMESPACE = reflpp;
+
+/**
+ * @}
+ */
 
 #endif // !METACPP_REFL_HPP

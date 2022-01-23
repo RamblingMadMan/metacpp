@@ -36,42 +36,6 @@ template<typename Str, typename ... Args>
 	std::exit(EXIT_FAILURE);
 }
 
-void print_namespace(const int depth, const ast::namespace_info *ns){
-	auto pad = fmt::format("{:>{}}", "", (depth+1) * 4);
-	auto inner_pad = fmt::format("{:>{}}", "", (depth+2) * 4);
-
-	fmt::print("{:>{}}(Namespace {}\n", "", depth * 4, ns->name.empty() ? "[Global]" : ns->name);
-
-	for(auto &&cls : ns->classes){
-		fmt::print("{}(Class '{}'\n", pad, cls.second->name);
-		for(auto &&attrib : cls.second->attributes){
-			fmt::print("{}(Attribute '{}')\n", inner_pad, attrib.str());
-		}
-		fmt::print("{})\n", pad);
-	}
-
-	for(auto &&fns : ns->functions){
-		fmt::print("{}(Function '{}'\n", pad, fns.first);
-
-		int counter = 0;
-		for(auto &&fn : fns.second){
-			fmt::print("{}(Candidate {})\n", inner_pad, counter++);
-		}
-
-		fmt::print("{})\n", pad);
-	}
-
-	for(auto &&alias : ns->aliases){
-		fmt::print("{}(TypeAlias {} {})\n", pad, alias.second->name, alias.second->aliased);
-	}
-
-	for(auto &&inner_ns : ns->namespaces){
-		print_namespace(depth+1, inner_ns.second);
-	}
-
-	fmt::print("{:>{}})\n", "", depth * 4);
-}
-
 int main(int argc, char *argv[]){
 	fs::path exe_path = fs::absolute(argv[0]);
 
@@ -100,9 +64,6 @@ int main(int argc, char *argv[]){
 	auto compile_info = ast::compile_info(build_dir);
 	auto info = ast::parse(header_path, compile_info);
 
-	/*
-	print_namespace(0, &info.global);
-
 	auto test_type = refl::reflect(meta::type_name<TestClassNS>);
 
 	if(!test_type){
@@ -118,8 +79,10 @@ int main(int argc, char *argv[]){
 
 	assert(test_info::name == test_type->name());
 	assert(test_info::num_methods == test_cls->num_methods());
-	//static_assert(test_info::query_method<"test_member">::size > 0);
-	*/
+
+	using method_results = typename test_info::query_method<"test_member", void(std::string_view)>;
+
+	static_assert(method_results::size > 0);
 
 	return EXIT_SUCCESS;
 }

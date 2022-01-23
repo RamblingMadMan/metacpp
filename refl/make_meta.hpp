@@ -96,15 +96,16 @@ std::string make_method_meta(const ast::class_info &cls, const ast::class_method
 	return fmt::format(
 		"{7}"
 		"template<> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
-		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
-		"\t"	"static constexpr std::size_t num_params = {5};\n"
-		"\t"	"static constexpr {3}({0}:: *ptr)({4}){6} = &{0}::{2};\n"
+		"\t"	"using ptr_type = {3}({0}::*)({4}){6};\n"
 		"\t"	"using result = {9};\n"
-		"\t"	"using param_types = metapp::types<{4}>;\n"
 		"#if __cplusplus >= 202002L\n"
 		"\t"	"using param_names = metapp::values<{10}>;\n"
 		"#endif\n"
+		"\t"	"using param_types = metapp::types<{4}>;\n"
 		"\t"	"using params = metapp::types<{8}>;\n"
+		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
+		"\t"	"static constexpr std::size_t num_params = {5};\n"
+		"\t"	"static constexpr ptr_type ptr = &{0}::{2};\n"
 		"}};\n",
 		cls.name, idx,
 		m.name, m.result_type, param_types_str, m.param_types.size(),

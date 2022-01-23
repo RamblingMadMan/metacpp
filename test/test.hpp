@@ -44,13 +44,15 @@ class TestClass{
 };
 
 class [[test::attrib]] TestClassAttrib{
-	TestClassAttrib(){}
-	~TestClassAttrib(){}
+	public:
+		TestClassAttrib(){}
+		~TestClassAttrib(){}
 };
 
 class [[test::attrib, foo::bar(1, "a", b, 'c')]] TestClass2Attribs{
-	TestClass2Attribs(){}
-	~TestClass2Attribs(){}
+	public:
+		TestClass2Attribs(){}
+		~TestClass2Attribs(){}
 };
 
 class [[test::predefined]] TestPredefined{};

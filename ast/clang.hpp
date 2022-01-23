@@ -18,6 +18,7 @@
 #include "fmt/format.h"
 
 #include <functional>
+#include <optional>
 
 namespace astpp::clang{
 	namespace fs = std::filesystem;
@@ -221,10 +222,12 @@ namespace astpp::clang{
 			friend class cursor;
 	};
 
+	class cursor;
+
 	class cursor{
 		public:
 			cursor(CXCursor c) noexcept
-			: m_handle(c){}
+				: m_handle(c){}
 
 			cursor(const cursor&) noexcept = default;
 
@@ -267,6 +270,25 @@ namespace astpp::clang{
 					},
 					&f0
 				);
+			}
+
+			std::optional<std::size_t> num_args() const noexcept{
+				auto n = clang_Cursor_getNumArguments(m_handle);
+				if(n == -1){
+					return std::nullopt;
+				}
+
+				return std::size_t(n);
+			}
+
+			std::optional<cursor> arg(std::size_t i) const noexcept{
+				auto num_args_opt = num_args();
+				if(!num_args_opt) return std::nullopt;
+
+				auto &&n = *num_args_opt;
+				if(i >= n) return std::nullopt;
+
+				return clang_Cursor_getArgument(m_handle, i);
 			}
 
 		private:

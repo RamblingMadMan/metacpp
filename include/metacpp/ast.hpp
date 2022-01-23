@@ -67,10 +67,17 @@ namespace astpp{
 	enum class entity_kind{
 		class_, function, namespace_, type, type_alias,
 
+		template_param,
+
+		class_base,
 		class_constructor,
 		class_destructor,
 		class_member,
 		class_method
+	};
+
+	enum class access_kind{
+		public_, protected_, private_
 	};
 
 	struct entity_info{
@@ -148,16 +155,31 @@ namespace astpp{
 		bool is_override;
 	};
 
+	struct template_param_info: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::template_param; }
+
+		std::string declarator;
+		std::string default_value;
+	};
+
+	struct class_base_info: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::class_base; }
+
+		access_kind access;
+	};
+
 	struct class_info: entity_info{
 		entity_kind kind() const noexcept override{ return entity_kind::class_; }
 
 		bool is_abstract;
+		bool is_template;
 
-		std::vector<const class_info*> bases;
+		std::vector<class_base_info> bases;
 		std::unordered_map<std::string, std::vector<const class_method_info*>> methods;
 		std::unordered_map<std::string, const class_member_info*> members;
 		std::unordered_map<std::string, const class_info*> classes;
 		std::vector<const class_constructor_info*> ctors;
+		std::vector<template_param_info> template_params;
 		const class_destructor_info *dtor = nullptr;
 	};
 

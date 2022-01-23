@@ -65,6 +65,8 @@ int main(int argc, char *argv[]){
 	}
 
 	using test_info = meta::class_info<TestClassNS>;
+	using test_attribs = meta::attributes<TestClass2Attribs>;
+
 	auto test_cls = dynamic_cast<refl::class_info>(test_type);
 
 	using namespace std::string_view_literals;
@@ -72,11 +74,26 @@ int main(int argc, char *argv[]){
 	assert(test_cls && "could not cast to refl::class_info");
 
 	assert(test_info::name == test_type->name());
-	assert(test_info::num_methods == test_cls->num_methods());
+	assert(test_info::methods::size == test_cls->num_methods());
 
-	using method_results = typename test_info::query_method<"test_member", void(std::string_view)>;
+	using attrib_results = meta::query_attribs<TestClass2Attribs, "foo", "bar">;
+	using method_results = meta::query_methods<TestClassNS, "test_member", void(std::string_view)>;
 
 	static_assert(method_results::size > 0);
+	static_assert(test_attribs::size == 2);
+	static_assert(attrib_results::size == 1);
+
+	using test_attrib = meta::get_t<attrib_results>;
+
+	static_assert(test_attrib::args::size == 5);
+
+	// 1, "2", '3', 4.0, 5.f
+
+	static_assert(meta::get_t<test_attrib::args, 0>::value == R"(1)");
+	static_assert(meta::get_t<test_attrib::args, 1>::value == R"("2")");
+	static_assert(meta::get_t<test_attrib::args, 2>::value == R"('3')");
+	static_assert(meta::get_t<test_attrib::args, 3>::value == R"(4.0)");
+	static_assert(meta::get_t<test_attrib::args, 4>::value == R"(5.f)");
 
 	return EXIT_SUCCESS;
 }

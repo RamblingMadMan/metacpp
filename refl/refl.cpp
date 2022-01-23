@@ -7,45 +7,34 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#include <dlfcn.h>
-
 #include <optional>
-
-#define BOOST_DLL_USE_STD_FS
-#include "boost/core/demangle.hpp"
-#include "boost/dll.hpp"
 
 #include "fmt/format.h"
 
 #include "metacpp/refl.hpp"
-
-namespace dll = boost::dll;
+#include "metacpp/plugin.hpp"
 
 namespace {
 	class type_loader{
 		public:
 			type_loader()
-				: program_handle(dlopen(nullptr, RTLD_LAZY))
-				, program_symbols(dll::library_info(dll::program_location()).symbols())
+				: program_symbols(plugin::self()->symbols())
 			{}
 
-			~type_loader(){
-				dlclose(program_handle);
-			}
+			~type_loader(){}
 
 			refl::type_info load(std::string_view name){
-				auto program_lib = dll::shared_library(dll::program_location());
+				auto program_lib = plugin::self();
 
 				for(auto &&sym : program_symbols){
-					auto readable = boost::core::demangle(sym.c_str());
+					auto readable = program_lib->demangle(sym);
 
 					constexpr std::string_view export_fn_name = "reflpp::detail::type_export";
 
 					auto exported_fn_res = readable.find(export_fn_name);
 					if(exported_fn_res != std::string::npos){
-						auto sym_ptr = dlsym(program_handle, sym.c_str());
+						auto sym_ptr = program_lib->get_symbol(sym);
 						if(!sym_ptr){
-							std::fprintf(stderr, "Error in dlsym(%s): %s\n", sym.c_str(), dlerror());
 							return nullptr;
 						}
 
@@ -62,7 +51,6 @@ namespace {
 			}
 
 		private:
-			void *program_handle;
 			std::vector<std::string> program_symbols;
 	};
 }

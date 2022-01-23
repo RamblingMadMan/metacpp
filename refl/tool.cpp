@@ -18,6 +18,8 @@
 namespace fs = std::filesystem;
 
 std::string make_class_refl(const ast::class_info &cls){
+	if(cls.is_template) return "";
+
 	return fmt::format(
 		"template<> REFLCPP_EXPORT_SYMBOL reflpp::type_info reflpp::detail::type_export<{0}>(){{\n"
 		"\t"	"struct class_info_impl: detail::info_helper_base<{0}, detail::class_info_helper>{{\n"

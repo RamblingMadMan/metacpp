@@ -89,6 +89,7 @@ namespace metapp{
 	template<typename ... Ts>
 	struct types{
 		static constexpr auto size = sizeof...(Ts);
+		static constexpr bool empty = size == 0;
 
 		/**
 		 * @brief Retrieve a type by index.
@@ -131,6 +132,7 @@ namespace metapp{
 	template<auto ... Xs>
 	struct values{
 		static constexpr auto size = sizeof...(Xs);
+		static constexpr bool empty = size == 0;
 
 		/**
 		 * @brief Retrieve a value by index.
@@ -191,6 +193,34 @@ namespace metapp{
 	template<typename ... Ls>
 	using join = typename detail::join_helper<Ls...>::type;
 
+	namespace detail{
+		template<typename Ts>
+		struct for_all_helper;
+
+		template<typename ... Ts>
+		struct for_all_helper<std::tuple<Ts...>>{
+			public:
+				template<typename Tup, typename Fn>
+				void invoke(Tup &&tup, Fn &&f){
+					invoke_impl(std::forward<Tup>(tup), std::forward<Fn>(f), indices{});
+				}
+
+			private:
+				template<typename Tup, typename Fn, std::size_t ... Is>
+				void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
+					(std::forward<Fn>(f)(std::get<Is>(std::forward<Tup>(tup))), ...);
+				}
+
+				using indices = std::make_index_sequence<sizeof...(Ts)>;
+		};
+	}
+
+	template<typename Tup, typename Fn>
+	void for_all(Tup &&tup, Fn &&f){
+		using tuple_type = std::decay_t<Tup>;
+		detail::for_all_helper<tuple_type>::invoke(std::forward<Tup>(tup), std::forward<Fn>(f));
+	}
+
 	/**
 	 * @brief Iterate all types in a type list.
 	 * @param f Template function to apply to each type.
@@ -206,12 +236,61 @@ namespace metapp{
 	 */
 	template<auto ... Xs, typename Fn>
 	void for_all(values<Xs...>, Fn &&f){
-		(std::forward<Fn>().template operator()<Xs>(), ...);
+		(std::forward<Fn>(f).template operator()<Xs>(), ...);
 	}
 
 	template<typename Ts, typename Fn>
 	void for_all(Fn &&f){
 		for_all(Ts{}, std::forward<Fn>(f));
+	}
+
+	namespace detail{
+		template<typename Ts>
+		struct for_all_i_helper;
+
+		template<typename ... Ts>
+		struct for_all_i_helper<types<Ts...>>{
+			public:
+				template<typename Fn>
+				void invoke(Fn &&f){
+					invoke_impl(std::forward<Fn>(f), indices{});
+				}
+
+			private:
+				template<typename Fn, std::size_t ... Is>
+				void invoke_impl(Fn &&f, std::index_sequence<Is...>){
+					(std::forward<Fn>(f).template operator()<Ts, Is>(), ...);
+				}
+
+				using indices = std::make_index_sequence<sizeof...(Ts)>;
+		};
+
+		template<typename ... Ts>
+		struct for_all_i_helper<std::tuple<Ts...>>{
+			public:
+				template<typename Tup, typename Fn>
+				void invoke(Tup &&tup, Fn &&f){
+					invoke_impl(std::forward<Tup>(tup), std::forward<Fn>(f), indices{});
+				}
+
+			private:
+				template<typename Tup, typename Fn, std::size_t ... Is>
+				void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
+					(std::forward<Fn>(f).template operator()<Is>(std::get<Is>(std::forward<Tup>(tup))), ...);
+				}
+
+				using indices = std::make_index_sequence<sizeof...(Ts)>;
+		};
+	}
+
+	template<typename Tup, typename Fn>
+	void for_all_i(Tup &&tup, Fn &&f){
+		detail::for_all_i_helper<std::decay_t<Tup>>::invoke(std::forward<Tup>(tup), std::forward<Fn>(f));
+	}
+
+	template<typename Ts, typename Fn>
+	void for_all_i(Fn &&f){
+		detail::for_all_i_helper<Ts>::invoke(std::forward<Fn>(f));
 	}
 
 	namespace detail{
@@ -278,6 +357,10 @@ namespace metapp{
 				return true;
 			}
 
+			constexpr bool empty() const noexcept{
+				return size == 0;
+			}
+
 			static constexpr std::size_t size = N;
 			const char data[N + 1];
 
@@ -342,8 +425,14 @@ namespace metapp{
 		template<typename Ent, std::size_t Idx>
 		struct attrib_info_data;
 
+		template<typename Ent, std::size_t AttribIdx, std::size_t Idx>
+		struct attrib_arg_info_data;
+
 		template<typename Ent, std::size_t Idx>
 		struct param_info_data;
+
+		template<typename Class, std::size_t Idx>
+		struct class_base_info_data;
 
 		template<typename Class, std::size_t Idx>
 		struct class_ctor_info_data;
@@ -364,6 +453,15 @@ namespace metapp{
 		struct enum_info_data;
 	}
 
+	enum class access_kind{
+		public_, protected_, private_
+	};
+
+	template<typename Ent, std::size_t AttribIdx, std::size_t Idx>
+	struct attrib_arg_info{
+		static constexpr std::string_view value = detail::attrib_arg_info_data<Ent, AttribIdx, Idx>::value;
+	};
+
 	template<typename Ent, std::size_t Idx>
 	struct attrib_info{
 		static constexpr std::string_view scope = detail::attrib_info_data<Ent, Idx>::scope;
@@ -377,6 +475,12 @@ namespace metapp{
 		static constexpr std::string_view name = detail::param_info_data<Ent, Idx>::name;
 
 		using type = typename detail::param_info_data<Ent, Idx>::type;
+	};
+
+	template<typename Class, std::size_t Idx>
+	struct class_base_info{
+		static constexpr access_kind access = detail::class_base_info_data<Class, Idx>::access;
+		using type = typename detail::class_base_info_data<Class, Idx>::type;
 	};
 
 	template<typename Class, std::size_t Idx>
@@ -409,6 +513,7 @@ namespace metapp{
 
 		static constexpr std::size_t num_params = detail::class_method_info_data<Class, Idx>::num_params;
 
+		using attributes = typename detail::class_info_data<Class>::attributes;
 		using result = typename detail::class_method_info_data<Class, Idx>::result;
 		using param_types = typename detail::class_method_info_data<Class, Idx>::param_types;
 		using params = typename detail::class_method_info_data<Class, Idx>::params;
@@ -424,15 +529,44 @@ namespace metapp{
 
 #if __cplusplus >= 202002L
 	namespace detail{
+		template<fixed_str Scope, fixed_str Name, typename Attribs, typename ... Results>
+		struct query_attribs_helper;
+
+		template<
+			fixed_str Scope, fixed_str Name,
+			typename Attrib, typename ... Attribs,
+			typename ... Results
+		>
+		struct query_attribs_helper<Scope, Name, types<Attrib, Attribs...>, Results...>
+			: std::conditional_t<
+				Attrib::name == Name,
+				std::conditional_t<
+					Scope.empty(),
+					query_attribs_helper<Scope, Name, types<Attribs...>, Results..., Attrib>,
+					std::conditional_t<
+						Attrib::scope == Scope,
+						query_attribs_helper<Scope, Name, types<Attribs...>, Results..., Attrib>,
+						query_attribs_helper<Scope, Name, types<Attribs...>, Results...>
+					>
+				>,
+				query_attribs_helper<Scope, Name, types<Attribs...>, Results...>
+			>
+		{};
+
+		template<fixed_str Scope, fixed_str Name, typename ... Results>
+		struct query_attribs_helper<Scope, Name, types<>, Results...>{
+			using type = types<Results...>;
+		};
+
 		template<typename Signature, auto Name, typename Infos, typename ... Results>
-		struct query_method_helper;
+		struct query_methods_helper;
 
 		template<fixed_str Name, typename MethodInfo, typename ... MethodInfos, typename ... Results>
-		struct query_method_helper<ignore, Name, types<MethodInfo, MethodInfos...>, Results...>
+		struct query_methods_helper<ignore, Name, types<MethodInfo, MethodInfos...>, Results...>
 			: std::conditional_t<
 				MethodInfo::name == Name,
-				query_method_helper<ignore, Name, types<MethodInfos...>, Results..., MethodInfo>,
-				query_method_helper<ignore, Name, types<MethodInfos...>, Results...>
+				query_methods_helper<ignore, Name, types<MethodInfos...>, Results..., MethodInfo>,
+				query_methods_helper<ignore, Name, types<MethodInfos...>, Results...>
 			>
 		{};
 
@@ -442,24 +576,24 @@ namespace metapp{
 			typename MethodInfo, typename ... MethodInfos,
 			typename ... Results
 		>
-		struct query_method_helper<Ret(Params...), Name, types<MethodInfo, MethodInfos...>, Results...>{
+		struct query_methods_helper<Ret(Params...), Name, types<MethodInfo, MethodInfos...>, Results...>{
 			private:
 				static constexpr auto dummy_query(){
 					if constexpr(MethodInfo::name == Name){
 						if constexpr(std::is_same_v<Ret, ignore> || std::is_same_v<Ret, typename MethodInfo::result>){
 							if constexpr(types<Params...>{} == types<ignore>{} || types<Params...>{} == typename MethodInfo::param_types{}){
-								return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results..., MethodInfo>::type{};
+								return typename query_methods_helper<Ret(Params...), Name, types<MethodInfos...>, Results..., MethodInfo>::type{};
 							}
 							else{
-								return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
+								return typename query_methods_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
 							}
 						}
 						else{
-							return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
+							return typename query_methods_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
 						}
 					}
 					else{
-						return typename query_method_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
+						return typename query_methods_helper<Ret(Params...), Name, types<MethodInfos...>, Results...>::type{};
 					}
 				}
 
@@ -468,7 +602,7 @@ namespace metapp{
 		};
 
 		template<typename Signature, fixed_str Name, typename ... Results>
-		struct query_method_helper<Signature, Name, types<>, Results...>{
+		struct query_methods_helper<Signature, Name, types<>, Results...>{
 			using type = types<Results...>;
 		};
 	}
@@ -476,25 +610,28 @@ namespace metapp{
 
 	template<typename Class>
 	struct class_info{
+		using attributes = typename detail::class_info_data<Class>::attributes;
+		using bases = typename detail::class_info_data<Class>::bases;
+		using ctors = typename detail::class_info_data<Class>::ctors;
+		using methods = typename detail::class_info_data<Class>::methods;
+		using members = typename detail::class_info_data<Class>::members;		
+
 		static constexpr std::string_view name = type_name<Class>;
 
 		static constexpr bool is_abstract = std::is_abstract_v<Class>;
 
-		static constexpr std::size_t num_methods = detail::class_info_data<Class>::num_methods;
-
-		using ctors = typename detail::class_info_data<Class>::ctors;
-		using methods = typename detail::class_info_data<Class>::methods;
-		using members = typename detail::class_info_data<Class>::members;
-
 #if __cplusplus >= 202002L
+		template<fixed_str Scope, fixed_str Name>
+		using query_attribute = typename detail::query_attribs_helper<Scope, Name, attributes>::type;
+
 		template<fixed_str Name, typename Signature = ignore>
-		using query_method = typename detail::query_method_helper<Signature, Name, methods>::type;
+		using query_methods = typename detail::query_methods_helper<Signature, Name, methods>::type;
 #endif
 	};
 
 #if __cplusplus >= 202002L
 	template<typename Class, fixed_str Name, typename Signature = ignore>
-	using query_method = typename detail::query_method_helper<Signature, Name, typename class_info<Class>::methods>::type;
+	using query_methods = typename detail::query_methods_helper<Signature, Name, typename class_info<Class>::methods>::type;
 #endif
 
 	template<typename Class, std::size_t Idx>
@@ -523,6 +660,30 @@ namespace metapp{
 
 	template<typename Enum, std::size_t Idx>
 	inline constexpr std::size_t enum_value = get_v<typename enum_info<Enum>::values, Idx>;
+
+	namespace detail{
+		template<typename Ent, typename = void>
+		struct info_helper;
+
+		template<typename Class>
+		struct info_helper<Class, std::enable_if_t<std::is_class_v<Class>>>{
+			using type = class_info<Class>;
+		};
+	}
+
+	template<typename Ent>
+	using info = typename detail::info_helper<Ent>::type;
+
+	template<typename Ent>
+	using attributes = typename info<Ent>::attributes;
+
+	template<typename Ent, std::size_t Idx>
+	using attribute_args = typename get_t<typename info<Ent>::attributes, Idx>::args;
+
+#if __cplusplus >= 202002L
+	template<typename Ent, fixed_str Scope, fixed_str Name>
+	using query_attribs = typename detail::query_attribs_helper<Scope, Name, typename info<Ent>::attributes>::type;
+#endif
 }
 
 namespace METACPP_META_NAMESPACE = metapp;

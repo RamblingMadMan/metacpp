@@ -60,6 +60,7 @@ target_reflect(<target>)
 #include <string_view>
 #include <tuple>
 
+[[my::attrib(1, "2", 3.0)]]
 class example{
     public:
         void method1(std::string_view s) const noexcept;
@@ -108,17 +109,55 @@ int main(int argc, char *argv[]){
     // alias the info for the example class
     using example_info = meta::class_info<example>;
 
+    // iterate over all class attributes
+    meta::for_all<meta::attributes<example>>([]<class Attrib>{
+
+        // supports [[scoped::attributes]]
+        if constexpr(!Attrib::scope.empty()){
+            std::cout << Attrib::scope << "::";
+        }
+
+        // get attribute names
+        std::cout << Attrib::name;
+
+        // also supports [[attributes(with, "args")]]
+        if constexpr(!Attrib::args::empty){
+            std::cout << "(";
+
+            // iterate over all attribute arguments
+            meta::for_all_i<typename Attrib::args>([]<class Arg, std::size_t Idx>{
+                if constexpr(Idx != 0){
+                    std::cout << ", ";
+                }
+
+                std::cout << Arg::value;
+            });
+
+            std::cout << ")";
+        }
+    });
+
     // --------------
     // C++20 Features
     // --------------
 
     // do compile-time queries on class info
-    static_assert(example_info::query_method<"method1">::size == 2);
+    static_assert(example_info::query_methods<"method1">::size == 2);
 
     // specify a signature
-    static_assert(example_info::query_method<"method1", void(std::string_view)>::size == 1);
+    static_assert(example_info::query_methods<"method1", void(std::string_view)>::size == 1);
 
     // or just part of one
-    static_assert(example_info::query_method<"method2", meta::ignore()>::size == 1);
+    static_assert(example_info::query_methods<"method2", meta::ignore()>::size == 1);
+
+    // also supports attribute queries
+    using my_attribs = example_info::query_attributes<"my", "attrib">;
+    static_assert(my_attribs::size == 1);
+    static_assert(my_attribs::args::size == 3);
+
+    // do some checking on the attribute arguments
+    static_assert(get_t<my_attribs::args, 0>::value == R"(1)");
+    static_assert(get_t<my_attribs::args, 1>::value == R"("2")");
+    static_assert(get_t<my_attribs::args, 2>::value == R"(3.0)");
 }
 ```

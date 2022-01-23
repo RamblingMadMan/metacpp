@@ -4,12 +4,12 @@
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-add_library(metacpp-refl SHARED make_meta.hpp refl.cpp)
+add_library(metacpp-refl STATIC make_meta.hpp refl.cpp)
 
 target_compile_features(metacpp-refl PUBLIC cxx_std_20)
 
 target_link_libraries(metacpp-refl PUBLIC metacpp::headers fmt::fmt-header-only)
-target_link_libraries(metacpp-refl PRIVATE Boost::system ${CMAKE_DL_LIBS})
+target_link_libraries(metacpp-refl PRIVATE Boost::system metacpp::plugin ${CMAKE_DL_LIBS})
 
 add_library(metacpp::refl ALIAS metacpp-refl)
 

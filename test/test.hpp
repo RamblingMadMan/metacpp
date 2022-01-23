@@ -37,13 +37,36 @@ class TestClass{
 		std::string_view f_0(std::string &str) const noexcept;
 };
 
+class TestBase{
+	public:
+		virtual ~TestBase() = default;
+};
+
+class TestDerived: public TestBase, private TestClass{
+	public:
+};
+
+template<typename T>
+struct TestTemplateClass{
+	public:
+		template<typename U>
+		void set_value(U &&v){
+			m_value = std::forward<U>(v);
+		}
+
+		const T &value() const noexcept{ return m_value; }
+
+	private:
+		T m_value;
+};
+
 class [[test::attrib]] TestClassAttrib{
 	public:
 		TestClassAttrib(){}
 		~TestClassAttrib(){}
 };
 
-class [[test::attrib, foo::bar(1, "a", b, 'c')]] TestClass2Attribs{
+class [[test::attrib, foo::bar(1, "2", '3', 4.0, 5.f)]] TestClass2Attribs{
 	public:
 		TestClass2Attribs(){}
 		~TestClass2Attribs(){}

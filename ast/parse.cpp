@@ -10,6 +10,7 @@
 #include <functional>
 #include <iostream>
 #include <optional>
+#include <set>
 
 #include "fmt/format.h"
 
@@ -40,8 +41,8 @@ namespace astpp::detail{
 	}
 
 	template<typename T>
-	T *store_info(info_map &info, T &&ent){
-		auto ptr = std::make_unique<T>(std::move(std::forward<T>(ent)));
+	std::decay_t<T> *store_info(info_map &info, T &&ent){
+		auto ptr = std::make_unique<std::decay_t<T>>(std::move(std::forward<T>(ent)));
 		auto ret = ptr.get();
 		info.storage.emplace_back(std::move(ptr));
 		return ret;
@@ -63,6 +64,9 @@ namespace astpp::detail{
 			else if(tok_str == ")"){
 				--depth;
 				if(depth == 0){
+					if(!arg_str.empty()){
+						ret.emplace_back(std::move(arg_str));
+					}
 					++it;
 					break;
 				}
@@ -331,7 +335,9 @@ namespace astpp::detail{
 	}
 
 	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c){
-		if(c.kind() != CXCursor_ClassDecl){
+		const bool is_template = c.kind() == CXCursor_ClassTemplate;
+
+		if(!is_template && c.kind() != CXCursor_ClassDecl){
 			return std::nullopt;
 		}
 
@@ -347,10 +353,6 @@ namespace astpp::detail{
 
 		auto class_name = c.spelling();
 
-		if(class_name == "__forced_unwind"){
-			return std::nullopt; // skip this unwanted class
-		}
-
 		class_info ret;
 
 		auto toks = c.tokens();
@@ -363,6 +365,7 @@ namespace astpp::detail{
 
 		ret.name = c.spelling();
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
+		ret.is_template = is_template;
 
 		if(clang_Cursor_isNull(def_cursor)){
 			return ret;
@@ -377,10 +380,52 @@ namespace astpp::detail{
 
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
+		bool in_template = is_template;
+
 		c.visit_children([&](clang::cursor inner, clang::cursor){
 			// TODO: check 'ptr' in each branch
 
-			if(auto class_decl = detail::parse_class_decl(path, infos, inner); class_decl){
+			if(in_template){
+				switch(inner.kind()){
+					case CXCursor_TemplateTypeParameter:{
+						template_param_info param;
+						param.name = inner.spelling();
+						param.declarator = "typename";
+						ret.template_params.emplace_back(std::move(param));
+						return;
+					}
+
+					default:{
+						in_template = false;
+						break;
+					}
+				}
+			}
+
+			if(inner.kind() == CXCursor_CXXBaseSpecifier){
+				class_base_info base;
+				base.name = inner.spelling();
+				switch(clang_getCXXAccessSpecifier(inner)){
+					case CX_CXXPublic:{
+						base.access = access_kind::public_;
+						break;
+					}
+
+					case CX_CXXProtected:{
+						base.access = access_kind::protected_;
+						break;
+					}
+
+					default:{
+						base.access = access_kind::private_;
+						break;
+					}
+				}
+
+				ret.bases.emplace_back(std::move(base));
+				return;
+			}
+			else if(auto class_decl = detail::parse_class_decl(path, infos, inner); class_decl){
 				auto ptr = store_info(*class_decl);
 				ret.classes[ptr->name] = ptr;
 			}
@@ -462,7 +507,7 @@ namespace astpp::detail{
 					ns.aliases[ptr->name] = ptr;
 				}
 			),
-			 *res
+			*res
 		);
 
 		return ret;
@@ -498,6 +543,19 @@ namespace astpp::detail{
 
 		ret.name = c.spelling();
 
+		static const std::set<std::string> ignored_namespaces = {
+			"std",
+			"__gnu_debug",
+			"__gnu_cxx",
+			"__cxx11",
+			"__cxxabiv1",
+			"__ops"
+		};
+
+		if(ignored_namespaces.find(ret.name) != ignored_namespaces.end()){
+			return std::nullopt;
+		}
+
 		c.visit_children(
 			[&](clang::cursor child, clang::cursor){
 				parse_namespace_inner(path, infos, ret, child);
@@ -520,9 +578,8 @@ namespace astpp::detail{
 		else if(auto alias = detail::parse_type_alias(path, infos, c); alias){
 			return std::make_optional<entity>(std::move(*alias));
 		}
-		else{
-			return std::nullopt;
-		}
+
+		return std::nullopt;
 	}
 }
 

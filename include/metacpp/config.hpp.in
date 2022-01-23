@@ -28,6 +28,10 @@
 #define METACPP_AST_NAMESPACE ast
 #endif
 
+#ifndef METACPP_PLUGIN_NAMESPACE
+#define METACPP_PLUGIN_NAMESPACE plugin
+#endif
+
 #ifndef METACPP_REFL_NAMESPACE
 #define METACPP_REFL_NAMESPACE refl
 #endif

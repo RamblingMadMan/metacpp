@@ -498,10 +498,10 @@ namespace metapp{
 #endif
 	};
 
-	#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L
 	template<typename Class, fixed_str Name, typename Signature = ignore>
 	using query_method = typename detail::query_method_helper<Signature, Name, typename class_info<Class>::methods>::type;
-	#endif
+#endif
 
 	template<typename Class, std::size_t Idx>
 	using class_ctor = get_t<typename class_info<Class>::ctors, Idx>;

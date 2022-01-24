@@ -265,7 +265,7 @@ namespace astpp::detail{
 	}
 
 	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c){
-		if(c.kind() != CXCursor_VarDecl){
+		if(c.kind() != CXCursor_FieldDecl){
 			return std::nullopt;
 		}
 
@@ -442,8 +442,7 @@ namespace astpp::detail{
 				ret.methods[ptr->name].emplace_back(ptr);
 			}
 			else if(auto member = detail::parse_class_member(path, infos, inner); member){
-				auto ptr = store_info(*member);
-				ret.members[ptr->name] = ptr;
+				ret.members.emplace_back(std::move(*member));
 			}
 
 			// TODO: handle access kinds

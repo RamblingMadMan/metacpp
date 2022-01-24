@@ -73,6 +73,7 @@ endif()
 add_subdirectory(ast)
 add_subdirectory(plugin)
 add_subdirectory(refl)
+add_subdirectory(serial)
 
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)

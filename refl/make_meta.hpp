@@ -81,8 +81,10 @@ std::string make_member_meta(const ast::class_info &cls, const ast::class_member
 
 	return fmt::format(
 		"template<{4}> struct metapp::detail::class_member_info_data<{0}, {1}>{{\n"
-		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
 		"\t"	"using type = {3};\n"
+		"\t"	"using ptr_type = {3} {0}::*;\n"
+		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
+		"\t"	"static constexpr ptr_type ptr = &{0}::{2};\n"
 		"}};\n",
 		full_name, idx, m.name, m.type, tmpl_params
 	);
@@ -299,7 +301,7 @@ std::string make_class_meta(const ast::class_info &cls){
 			full_name, member_idx
 		);
 
-		output += make_member_meta(cls, *member.second, member_idx++);
+		output += make_member_meta(cls, member, member_idx++);
 		output += "\n";
 	}
 

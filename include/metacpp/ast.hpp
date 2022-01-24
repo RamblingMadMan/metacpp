@@ -117,8 +117,6 @@ namespace astpp{
 	struct class_member_info: entity_info{
 		entity_kind kind() const noexcept override{ return entity_kind::class_member; }
 
-		std::size_t index;
-
 		std::string type;
 	};
 
@@ -178,7 +176,7 @@ namespace astpp{
 
 		std::vector<class_base_info> bases;
 		std::unordered_map<std::string, std::vector<const class_method_info*>> methods;
-		std::unordered_map<std::string, const class_member_info*> members;
+		std::vector<class_member_info> members;
 		std::unordered_map<std::string, const class_info*> classes;
 		std::vector<const class_constructor_info*> ctors;
 		std::vector<template_param_info> template_params;

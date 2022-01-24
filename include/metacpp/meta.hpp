@@ -227,7 +227,16 @@ namespace metapp{
 	 */
 	template<typename ... Ts, typename Fn>
 	void for_all(types<Ts...>, Fn &&f){
-		(std::forward<Fn>(f).template operator()<Ts>(), ...);
+#if __cplusplus >= 202002L
+		if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>> && ...)){
+			(std::forward<Fn>(f)(type<Ts>{}), ...);
+		}
+		else{
+			(std::forward<Fn>(f).template operator()<Ts>(), ...);
+		}
+#else
+		(std::forward<Fn>(f)(type<Ts>{}), ...);
+#endif
 	}
 
 	/**
@@ -236,7 +245,16 @@ namespace metapp{
 	 */
 	template<auto ... Xs, typename Fn>
 	void for_all(values<Xs...>, Fn &&f){
-		(std::forward<Fn>(f).template operator()<Xs>(), ...);
+#if __cplusplus >= 202002L
+		if constexpr((std::is_invocable_v<std::decay_t<Fn>, value<Xs>> && ...)){
+			(std::forward<Fn>(f)(value<Xs>{}), ...);
+		}
+		else{
+			(std::forward<Fn>(f).template operator()<Xs>(), ...);
+		}
+#else
+		(std::forward<Fn>(f)(value<Xs>{}), ...);
+#endif
 	}
 
 	template<typename Ts, typename Fn>
@@ -252,13 +270,13 @@ namespace metapp{
 		struct for_all_i_helper<types<Ts...>>{
 			public:
 				template<typename Fn>
-				void invoke(Fn &&f){
+				static constexpr void invoke(Fn &&f){
 					invoke_impl(std::forward<Fn>(f), indices{});
 				}
 
 			private:
 				template<typename Fn, std::size_t ... Is>
-				void invoke_impl(Fn &&f, std::index_sequence<Is...>){
+				static constexpr void invoke_impl(Fn &&f, std::index_sequence<Is...>){
 					(std::forward<Fn>(f).template operator()<Ts, Is>(), ...);
 				}
 
@@ -269,13 +287,13 @@ namespace metapp{
 		struct for_all_i_helper<std::tuple<Ts...>>{
 			public:
 				template<typename Tup, typename Fn>
-				void invoke(Tup &&tup, Fn &&f){
+				static constexpr void invoke(Tup &&tup, Fn &&f){
 					invoke_impl(std::forward<Tup>(tup), std::forward<Fn>(f), indices{});
 				}
 
 			private:
 				template<typename Tup, typename Fn, std::size_t ... Is>
-				void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
+				static constexpr void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
 					(std::forward<Fn>(f).template operator()<Is>(std::get<Is>(std::forward<Tup>(tup))), ...);
 				}
 
@@ -446,6 +464,9 @@ namespace metapp{
 		template<typename Class, std::size_t Idx>
 		struct class_method_info_data;
 
+		template<typename Class, std::size_t Idx>
+		struct class_member_info_data;
+
 		template<typename Class>
 		struct class_info_data;
 
@@ -519,6 +540,24 @@ namespace metapp{
 		static constexpr std::string_view name = detail::class_method_info_data<Class, Idx>::name;
 		static constexpr bool is_virtual = detail::class_method_info_data<Class, Idx>::is_virtual;
 		static constexpr auto ptr = detail::class_method_info_data<Class, Idx>::ptr;
+
+		template<typename T, typename ... Args>
+		static constexpr decltype(auto) call(T &&cls, Args &&... args){
+			return (std::forward<T>(cls).*ptr)(std::forward<Args>(args)...);
+		}
+	};
+
+	template<typename Class, std::size_t Idx>
+	struct class_member_info{
+		using type = typename detail::class_member_info_data<Class, Idx>::type;
+
+		static constexpr std::string_view name = detail::class_member_info_data<Class, Idx>::name;
+		static constexpr auto ptr = detail::class_member_info_data<Class, Idx>::ptr;
+
+		template<typename T>
+		static constexpr auto get(T &&cls){
+			return std::forward<T>(cls).*ptr;
+		}
 	};
 
 	struct ignore{

@@ -32,6 +32,10 @@
 #define METACPP_PLUGIN_NAMESPACE plugin
 #endif
 
+#ifndef METACPP_SERIAL_NAMESPACE
+#define METACPP_SERIAL_NAMESPACE serial
+#endif
+
 #ifndef METACPP_REFL_NAMESPACE
 #define METACPP_REFL_NAMESPACE refl
 #endif

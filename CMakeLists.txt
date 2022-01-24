@@ -53,7 +53,7 @@ if(NOT Boost_system_FOUND)
 		GIT_TAG        a07c63c9e56f4d3b5bc904e25a7ad6f900728dbf # boost-1.78.0
 	)
 
-FetchContent_MakeAvailable(boostlib)
+	FetchContent_MakeAvailable(boostlib)
 elseif(NOT Boost_dll_FOUND)
 	message(WARNING "Could not find Boost::dll, trying to continue anyway")
 endif()

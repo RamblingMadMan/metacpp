@@ -60,6 +60,14 @@ target_reflect(<target>)
 
 ## Usage
 
+### `CMakeLists.txt`:
+
+```cmake
+add_executable(example example.h example.cpp)
+
+target_reflect(example)
+```
+
 ### `example.h`:
 
 ```c++

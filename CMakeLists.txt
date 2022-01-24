@@ -35,6 +35,7 @@ set(
 	${METACPP_INCLUDE_DIR}/metacpp/refl.hpp
 	${METACPP_INCLUDE_DIR}/metacpp/plugin.hpp
 	${METACPP_INCLUDE_DIR}/metacpp/ast.hpp
+	${METACPP_INCLUDE_DIR}/metacpp/serial.hpp
 	${CMAKE_CURRENT_BINARY_DIR}/include/metacpp/config.hpp
 )
 
@@ -73,7 +74,6 @@ endif()
 add_subdirectory(ast)
 add_subdirectory(plugin)
 add_subdirectory(refl)
-add_subdirectory(serial)
 
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)

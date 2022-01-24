@@ -6,10 +6,14 @@ Also included is a tool for generating the necessary meta and reflection informa
 
 ## Dependencies
 
-- CMake 3.21+
+System dependencies:
+- [CMake](https://cmake.org/) 3.21+
 - A C++17 compiler
-- Libclang
-- Boost system
+- [Libclang](https://clang.llvm.org/)
+
+External dependencies (will be found or downloaded as required):
+- [Boost](https://www.boost.org/) system
+- [{fmt}](https://fmt.dev/)
 
 ## Including in a project
 
@@ -17,7 +21,20 @@ Although standalone compilation is supported and is important for bug-testing an
 
 ### Fetching the library
 
-#### As a git submodule (recommended)
+#### Using `FetchContent` (recommended)
+
+From within your projects main `CMakeLists.txt` add the following before any targets that depend on the library:
+
+```cmake
+FetchContent_Declare(
+    metapp
+    GIT_REPOSITORY https://github.com/RamblingMadMan/metacpp.git
+)
+
+FetchContent_MakeAvailable(metapp)
+```
+
+#### As a git submodule
 
 From the source directory of a project initialized with git run the following command:
 
@@ -31,19 +48,6 @@ Then from within your projects main `CMakeLists.txt` add the following before an
 
 ```cmake
 add_subdirectory(deps/metacpp)
-```
-
-#### Using `FetchContent`
-
-From within your projects main `CMakeLists.txt` add the following before any targets that depend on the library:
-
-```cmake
-FetchContent_Declare(
-    metapp
-    GIT_REPOSITORY https://github.com/RamblingMadMan/metacpp.git
-)
-
-FetchContent_MakeAvailable(metapp)
 ```
 
 ### Generating information

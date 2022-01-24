@@ -1,4 +1,0 @@
-[submodule "deps/fmt"]
-	path = deps/fmt
-	url = https://github.com/fmtlib/fmt.git
-	branch = 8.1.1

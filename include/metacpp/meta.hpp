@@ -648,6 +648,9 @@ namespace metapp{
 	template<typename Class>
 	using methods = typename class_info<Class>::methods;
 
+	template<typename Class>
+	using members = typename class_info<Class>::members;
+
 	template<typename Enum, std::size_t Idx>
 	struct enum_value_info{
 		static constexpr std::string_view name = detail::enum_value_info_data<Enum, Idx>::name;

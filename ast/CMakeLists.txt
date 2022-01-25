@@ -6,7 +6,7 @@ find_package(Clang REQUIRED)
 
 add_library(metacpp-ast clang.hpp compile_info.cpp parse.cpp)
 
-target_compile_features(metacpp-ast PUBLIC cxx_std_20)
+target_compile_features(metacpp-ast PUBLIC cxx_std_17)
 
 target_link_libraries(
 	metacpp-ast PRIVATE libclang

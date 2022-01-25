@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
 	test_val.m_0 = 69;
 	test_val.m_1 = 420.f;
 
-	assert(serial::to_json(test_val) == R"({"metacpp-class":[{"member":{"name":"m_0","type":"int","value":"69"}},{"member":{"name":"m_1","type":"float","value":"420"}}]})");
+	assert(serial::to_json(test_val) == R"({"TestClass":[{"member":{"name":"m_0","type":"int","value":"69"}},{"member":{"name":"m_1","type":"float","value":"420"}}]})");
 
 	using namespace std::string_view_literals;
 

@@ -6,7 +6,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 
 add_library(metacpp-refl STATIC make_meta.hpp refl.cpp)
 
-target_compile_features(metacpp-refl PUBLIC cxx_std_20)
+target_compile_features(metacpp-refl PUBLIC cxx_std_17)
 
 target_link_libraries(metacpp-refl PUBLIC metacpp::headers fmt::fmt-header-only)
 target_link_libraries(metacpp-refl PRIVATE Boost::system metacpp::plugin ${CMAKE_DL_LIBS})
@@ -15,7 +15,7 @@ add_library(metacpp::refl ALIAS metacpp-refl)
 
 add_executable(reflpp tool.cpp)
 
-target_compile_features(reflpp PRIVATE cxx_std_20)
+target_compile_features(reflpp PRIVATE cxx_std_17)
 
 target_link_libraries(reflpp Boost::system fmt::fmt-header-only metacpp::ast)
 

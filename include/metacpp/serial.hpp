@@ -26,7 +26,7 @@ namespace serialpp{
 				std::ostringstream output;
 				output << std::noshowpoint;
 
-				output << "{\"metacpp-class\":[";
+				output << "{\"" << metapp::type_name<Class> << "\":[";
 
 				metapp::for_all_i<metapp::members<Class>>(
 					[&]<class Member, std::size_t Idx>{

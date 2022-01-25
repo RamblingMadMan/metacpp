@@ -40,7 +40,7 @@ set(
 )
 
 add_library(metacpp-headers INTERFACE ${METACPP_RESOURCES} ${METACPP_INCLUDES})
-target_compile_features(metacpp-headers INTERFACE cxx_std_20)
+target_compile_features(metacpp-headers INTERFACE cxx_std_17)
 target_include_directories(metacpp-headers INTERFACE ${METACPP_INCLUDE_DIRS})
 
 add_library(metacpp::headers ALIAS metacpp-headers)

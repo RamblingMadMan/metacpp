@@ -403,8 +403,11 @@ namespace astpp::detail{
 			}
 
 			if(inner.kind() == CXCursor_CXXBaseSpecifier){
+				auto base_type = clang_getCursorType(inner);
+
 				class_base_info base;
-				base.name = inner.spelling();
+				base.name = clang::detail::convert_str(clang_getTypeSpelling(base_type));
+
 				switch(clang_getCXXAccessSpecifier(inner)){
 					case CX_CXXPublic:{
 						base.access = access_kind::public_;

@@ -73,6 +73,14 @@ function(target_reflect tgt)
 		)
 	endif()
 
+	if(${TGT_TYPE} STREQUAL "EXECUTABLE")
+		set_target_properties(
+			${tgt} PROPERTIES
+			POSITION_INDEPENDENT_CODE ON
+			ENABLE_EXPORTS ON
+		)
+	endif()
+
 	set(INPUT_HEADERS "")
 
 	set(OUTPUT_DIR "${TGT_BINARY_DIR}/reflect")

@@ -6,6 +6,7 @@
 
 #define BOOST_DLL_USE_STD_FS 1
 #include "boost/dll/library_info.hpp"
+#include "boost/dll/shared_library.hpp"
 #include "boost/dll/runtime_symbol_info.hpp"
 
 #include <dlfcn.h>
@@ -42,6 +43,8 @@ namespace {
 				auto info = dll::library_info(dll::program_location());
 
 				m_symbols = info.symbols();
+
+				import_types();
 			}
 
 			explicit dynamic_library(const fs::path &path)
@@ -56,6 +59,8 @@ namespace {
 				auto info = dll::library_info(path);
 
 				m_symbols = info.symbols();
+
+				import_types();
 			}
 
 			dynamic_library(const dynamic_library&) = delete;
@@ -63,6 +68,7 @@ namespace {
 			dynamic_library(dynamic_library &&other) noexcept
 				: m_handle(std::exchange(other.m_handle, nullptr))
 				, m_symbols(std::move(other.m_symbols))
+				, m_types(std::move(other.m_types))
 			{}
 
 			~dynamic_library(){
@@ -74,6 +80,7 @@ namespace {
 			dynamic_library &operator=(dynamic_library &&other) noexcept{
 				if(this != &other){
 					m_symbols = std::move(other.m_symbols);
+					m_types = std::move(other.m_types);
 					reset(std::exchange(other.m_handle, nullptr));
 				}
 
@@ -90,6 +97,10 @@ namespace {
 				return m_symbols;
 			}
 
+			const std::vector<reflpp::type_info> &exported_types() const noexcept override{
+				return m_types;
+			}
+
 			void *get_symbol(const std::string &name) const noexcept override{
 				if(!is_valid()) return nullptr;
 
@@ -102,6 +113,29 @@ namespace {
 			}
 
 		private:
+			void import_types(){
+				for(auto &&sym : m_symbols){
+					auto readable = demangle(sym);
+
+					constexpr std::string_view exportFnName = "reflpp::detail::fn_export";
+					const auto exported_fn_res = readable.find(exportFnName);
+					if(exported_fn_res != std::string::npos){
+						// TODO: import function
+						continue;
+					}
+
+					constexpr std::string_view exportTypeName = "reflpp::detail::type_export";
+					const auto exported_type_res = readable.find(exportTypeName);
+					if(exported_type_res != std::string::npos){
+						auto ptr = get_symbol(sym);
+						auto f = reinterpret_cast<refl::type_info(*)()>(ptr);
+						assert(f);
+						m_types.emplace_back(f());
+						continue;
+					}
+				}
+			}
+
 			void reset(void *handle = nullptr){
 				auto old_handle = std::exchange(m_handle, handle);
 
@@ -112,6 +146,7 @@ namespace {
 
 			void *m_handle;
 			std::vector<std::string> m_symbols;
+			std::vector<refl::type_info> m_types;
 	};
 
 	class plugin_loader{
@@ -160,4 +195,27 @@ const library *plugin::load(const fs::path &path){
 
 const library *plugin::self(){
 	return plugin::load(dll::program_location());
+}
+
+std::vector<std::filesystem::path> plugin::nearby_plugins(){
+	namespace fs = std::filesystem;
+
+	auto exe_dir = dll::program_location().parent_path();
+
+	std::vector<std::filesystem::path> ret;
+
+	for(
+		auto &&entry :
+		fs::directory_iterator(exe_dir, fs::directory_options::skip_permission_denied)
+	){
+		if(!entry.is_regular_file()) continue;
+
+		auto path = entry.path();
+
+		if(path.extension() == dll::shared_library::suffix()){
+			ret.emplace_back(std::move(path));
+		}
+	}
+
+	return ret;
 }

@@ -10,7 +10,7 @@
 #ifndef METACPP_PLUGIN_HPP
 #define METACPP_PLUGIN_HPP 1
 
-#include "metacpp/config.hpp"
+#include "refl.hpp"
 
 #include <vector>
 #include <filesystem>
@@ -22,10 +22,14 @@ namespace pluginpp{
 
 			virtual const std::vector<std::string> &symbols() const noexcept = 0;
 
+			virtual const std::vector<reflpp::type_info> &exported_types() const noexcept = 0;
+
 			virtual std::string demangle(const std::string &symbol_name) const noexcept = 0;
 
 			virtual void *get_symbol(const std::string &name) const noexcept = 0;
 	};
+
+	std::vector<std::filesystem::path> nearby_plugins();
 
 	const library *load(const std::filesystem::path &path);
 	const library *self();

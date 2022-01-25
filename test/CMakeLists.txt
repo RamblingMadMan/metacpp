@@ -4,10 +4,17 @@
 
 enable_testing()
 
+add_plugin(plugin-test test.hpp plugin.cpp)
+
+add_executable(loader-test loader.cpp)
+
 add_executable(ast-test test.hpp test.cpp)
 add_executable(meta-example example.h example.cpp)
 
 target_compile_features(ast-test PRIVATE cxx_std_20)
+
+target_link_libraries(loader-test PRIVATE fmt::fmt-header-only)
+target_link_plugins(loader-test plugin-test)
 
 set_target_properties(
 	ast-test meta-example PROPERTIES

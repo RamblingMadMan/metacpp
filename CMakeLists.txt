@@ -75,6 +75,33 @@ add_subdirectory(ast)
 add_subdirectory(plugin)
 add_subdirectory(refl)
 
+function(add_plugin tgt)
+	add_library(${tgt} SHARED ${ARGN})
+	target_reflect(${tgt})
+endfunction()
+
+function(target_link_plugins tgt)
+	target_link_libraries(${tgt} PRIVATE metacpp::headers metacpp::plugin)
+
+	add_custom_command(
+		TARGET ${tgt}
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_PROPERTY:${tgt},BINARY_DIR>
+		VERBATIM
+	)
+
+	foreach(plugin IN LISTS ARGN)
+		add_dependencies(${tgt} ${plugin})
+
+		add_custom_command(
+			TARGET ${tgt}
+			POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${plugin}> $<TARGET_PROPERTY:${tgt},BINARY_DIR>
+			VERBATIM
+		)
+	endforeach()
+endfunction()
+
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)
 endif()

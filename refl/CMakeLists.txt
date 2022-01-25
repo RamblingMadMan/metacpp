@@ -47,12 +47,16 @@ function(target_reflect tgt)
 		ENABLE_EXPORTS ON
 	)
 
-	target_compile_features(${tgt} PRIVATE cxx_std_17)
+	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+		target_compile_features(${tgt} INTERFACE cxx_std_17)
+	else()
+		target_compile_features(${tgt} PRIVATE cxx_std_17)
+	endif()
 
 	get_target_property(TGT_CXX_STANDARD ${tgt} CXX_STANDARD)
 
 	if(TGT_CXX_STANDARD LESS 17)
-		message("-- Setting CXX_STANDARD for ${tgt} to 17 from ${TGT_CXX_STANDARD}")
+		message("-- Changing CXX_STANDARD for ${tgt} from ${TGT_CXX_STANDARD} to 17")
 		set_target_properties(
 			${tgt} PROPERTIES
 			CXX_STANDARD 17

@@ -23,7 +23,7 @@ std::string class_full_name(const ast::class_info &cls){
 	}
 
 	if(!tmpl_param_names.empty()){
-		ret += fmt::format("<{}>", std::string_view(tmpl_param_names.begin() + 2, tmpl_param_names.end()));
+		ret += fmt::format("<{}>", std::string_view(tmpl_param_names.data() + 2, tmpl_param_names.size() - 2));
 	}
 
 	return ret;

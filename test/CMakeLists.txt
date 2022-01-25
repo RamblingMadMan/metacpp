@@ -9,6 +9,12 @@ add_executable(meta-example example.h example.cpp)
 
 target_compile_features(ast-test PRIVATE cxx_std_20)
 
+set_target_properties(
+	ast-test meta-example PROPERTIES
+	CXX_STANDARD 20
+	CXX_STANDARD_REQUIRED ON
+)
+
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	message(WARNING "MSVC not fully supported")
 else()

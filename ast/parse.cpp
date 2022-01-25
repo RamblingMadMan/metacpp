@@ -657,7 +657,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 	bool standard_given = false;
 
 	for(auto &&opt : options){
-		if(opt.starts_with("-std=")){
+		if(std::string_view(opt).substr(0, 5) == "-std="){
 			standard_given = true;
 		}
 	}

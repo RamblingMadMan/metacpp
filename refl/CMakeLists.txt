@@ -83,15 +83,17 @@ endif()
 		endif()
 	endforeach()
 
-	add_custom_command(
-		OUTPUT ${OUTPUT_SOURCES} ${OUTPUT_HEADERS}
-		DEPENDS reflpp ${INPUT_HEADERS}
-		COMMAND reflpp -o "${OUTPUT_DIR}" "${PROJECT_BINARY_DIR}" ${INPUT_HEADERS}
-		WORKING_DIRECTORY ${TGT_SOURCE_DIR}
-		VERBATIM
-	)
+	if(NOT OUTPUT_HEADERS STREQUAL "")
+		add_custom_command(
+			OUTPUT ${OUTPUT_SOURCES} ${OUTPUT_HEADERS}
+			DEPENDS reflpp ${INPUT_HEADERS}
+			COMMAND reflpp -o "${OUTPUT_DIR}" "${PROJECT_BINARY_DIR}" ${INPUT_HEADERS}
+			WORKING_DIRECTORY ${TGT_SOURCE_DIR}
+			VERBATIM
+		)
+
+		target_sources(${tgt} PRIVATE ${OUTPUT_SOURCES})
+	endif()
 
 	target_include_directories(${tgt} PRIVATE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
-
-	target_sources(${tgt} PRIVATE ${OUTPUT_SOURCES})
 endfunction()

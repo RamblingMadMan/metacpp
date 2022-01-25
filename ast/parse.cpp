@@ -594,7 +594,10 @@ namespace astpp::detail{
 	}
 
 	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c){
-		if(auto class_decl = detail::parse_class_decl(path, infos, c); class_decl){
+		if(!clang_Location_isFromMainFile(clang_getCursorLocation(c))){
+			return std::nullopt;
+		}
+		else if(auto class_decl = detail::parse_class_decl(path, infos, c); class_decl){
 			return std::make_optional<entity>(std::move(*class_decl));
 		}
 		else if(auto enum_decl = detail::parse_enum_decl(path, infos, c); enum_decl){

@@ -128,10 +128,23 @@ int main(int argc, char *argv[]){
 
 	auto compile_info = ast::compile_info(build_dir);
 
-	for(auto &&header : headers){
+	for(const auto &header : headers){
+		const auto abs_header = fs::absolute(header).string();
+
 		auto info = ast::parse(header, compile_info);
 
+		const auto include_dirs = compile_info.file_include_dirs(header);
+
 		auto out_header_path = output_dir / header;
+
+		for(auto &&dir : include_dirs){
+			auto abs_dir = fs::absolute(dir).string();
+			if(std::string_view(abs_header).substr(0, abs_dir.size()) == abs_dir){
+				out_header_path = output_dir / std::string_view(abs_header).substr(abs_dir.size());
+				break;
+			}
+		}
+
 		out_header_path.replace_extension(fmt::format(".meta{}", header.extension().string()));
 
 		auto out_source_path = output_dir / header;

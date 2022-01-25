@@ -29,3 +29,17 @@ compile_info::~compile_info(){}
 std::vector<std::string> compile_info::file_options(const std::filesystem::path &path) const{
 	return impl->db.file_options(path);
 }
+
+std::vector<std::filesystem::path> compile_info::file_include_dirs(const std::filesystem::path &path) const{
+	std::vector<std::filesystem::path> ret;
+
+	const auto options =  impl->db.file_options(path);
+
+	for(std::string_view opt : options){
+		if(opt.substr(0, 2) == "-I"){
+			ret.emplace_back(opt.substr(2));
+		}
+	}
+
+	return ret;
+}

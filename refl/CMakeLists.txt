@@ -28,7 +28,13 @@ function(target_reflect tgt)
 		target_compile_options(${tgt} PUBLIC "-Wno-attributes")
 	endif()
 
-	target_link_libraries(${tgt} PRIVATE metacpp::headers)
+	get_target_property(TGT_TYPE ${tgt} TYPE)
+
+	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+		target_link_libraries(${tgt} INTERFACE metacpp::headers)
+	else()
+		target_link_libraries(${tgt} PRIVATE metacpp::headers)
+	endif()
 
 	get_target_property(TGT_BINARY_DIR ${tgt} BINARY_DIR)
 	get_target_property(TGT_INCLUDE_DIRS ${tgt} INCLUDE_DIRECTORIES)
@@ -52,7 +58,7 @@ function(target_reflect tgt)
 			CXX_STANDARD 17
 			CXX_STANDARD_REQUIRED ON
 		)
-endif()
+	endif()
 
 	set(INPUT_HEADERS "")
 
@@ -75,8 +81,13 @@ endif()
 			list(APPEND OUTPUT_HEADERS "${OUTPUT_DIR}/${TGT_HEADER_OUT}")
 			list(APPEND OUTPUT_SOURCES "${TGT_SOURCE_OUTPUT}")
 
-			target_sources(${tgt} PUBLIC "${OUTPUT_DIR}/${TGT_HEADER_OUT}")
-			target_sources(${tgt} PRIVATE "${TGT_SOURCE_OUTPUT}")
+			if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+				target_sources(${tgt} INTERFACE "${OUTPUT_DIR}/${TGT_HEADER_OUT}")
+				target_sources(${tgt} INTERFACE "${TGT_SOURCE_OUTPUT}")
+			else()
+				target_sources(${tgt} PUBLIC "${OUTPUT_DIR}/${TGT_HEADER_OUT}")
+				target_sources(${tgt} PRIVATE "${TGT_SOURCE_OUTPUT}")
+			endif()
 
 			#set_source_files_properties("${TGT_SOURCE_OUTPUT}" PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 			#set_source_files_properties("${OUTPUT_DIR}/${TGT_HEADER_OUT}" PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
@@ -92,8 +103,12 @@ endif()
 			VERBATIM
 		)
 
-		target_sources(${tgt} PRIVATE ${OUTPUT_SOURCES})
+		#target_sources(${tgt} PRIVATE ${OUTPUT_SOURCES})
 	endif()
 
-	target_include_directories(${tgt} PRIVATE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
+	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+		target_include_directories(${tgt} INTERFACE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
+	else()
+		target_include_directories(${tgt} PRIVATE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
+	endif()
 endfunction()

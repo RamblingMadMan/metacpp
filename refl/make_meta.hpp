@@ -14,39 +14,12 @@
 
 #include "fmt/format.h"
 
-std::string class_full_name(const ast::class_info &cls){
-	std::string ret = cls.name;
-
-	std::string tmpl_param_names;
-	for(auto &&param : cls.template_params){
-		tmpl_param_names += fmt::format(", {}", param.name);
-	}
-
-	if(!tmpl_param_names.empty()){
-		ret += fmt::format("<{}>", std::string_view(tmpl_param_names.data() + 2, tmpl_param_names.size() - 2));
-	}
-
-	return ret;
-}
-
-std::string class_tmpl_params(const ast::class_info &cls){
-	std::string ret;
-
-	for(auto &&param : cls.template_params){
-		ret += fmt::format(", {} {}", param.declarator, param.name);
-	}
-
-	if(!ret.empty()){
-		ret.erase(0, 2);
-	}
-
-	return ret;
-}
-
-std::string make_ctor_meta(const ast::class_info &cls, const ast::class_constructor_info &ctor, std::size_t idx){
-	const auto full_name = class_full_name(cls);
-	const auto tmpl_params = class_tmpl_params(cls);
-
+std::string make_ctor_meta(
+	std::string_view tmpl_params,
+	std::string_view full_name,
+	const ast::class_constructor_info &ctor,
+	std::size_t idx
+){
 	std::string param_types_str;
 
 	for(auto &&param_type : ctor.param_types){
@@ -75,10 +48,12 @@ std::string make_ctor_meta(const ast::class_info &cls, const ast::class_construc
 	);
 }
 
-std::string make_member_meta(const ast::class_info &cls, const ast::class_member_info &m, std::size_t idx){
-	const auto full_name = class_full_name(cls);
-	const auto tmpl_params = class_tmpl_params(cls);
-
+std::string make_member_meta(
+	std::string_view tmpl_params,
+	std::string_view full_name,
+	const ast::class_member_info &m,
+	std::size_t idx
+){
 	return fmt::format(
 		"template<{4}> struct metapp::detail::class_member_info_data<{0}, {1}>{{\n"
 		"\t"	"using type = {3};\n"
@@ -90,11 +65,13 @@ std::string make_member_meta(const ast::class_info &cls, const ast::class_member
 	);
 }
 
-std::string make_method_meta(const ast::class_info &cls, const ast::class_method_info &m, std::size_t idx){
-	std::string param_metas_str, param_types_str, param_names_member_str, params_member_str;	
-
-	const auto full_name = class_full_name(cls);
-	const auto tmpl_params = class_tmpl_params(cls);
+std::string make_method_meta(
+	std::string_view tmpl_params,
+	std::string_view full_name,
+	const ast::class_method_info &m,
+	std::size_t idx
+){
+	std::string param_metas_str, param_types_str, param_names_member_str, params_member_str;
 
 	for(std::size_t i = 0; i < m.param_types.size(); i++){
 		auto &&param_type = m.param_types[i];
@@ -221,7 +198,7 @@ std::string make_class_meta(const ast::class_info &cls){
 	}
 
 	for(auto &&ctor : cls.ctors){
-		output += make_ctor_meta(cls, *ctor, ctor_idx++);
+		output += make_ctor_meta(tmpl_params, full_name, *ctor, ctor_idx++);
 	}
 
 	std::size_t attrib_idx = 0, method_idx = 0, member_idx = 0;
@@ -289,7 +266,7 @@ std::string make_class_meta(const ast::class_info &cls){
 				full_name, method_idx
 			);
 
-			output += make_method_meta(cls, *m, method_idx++);
+			output += make_method_meta(tmpl_params, full_name, *m, method_idx++);
 			output += "\n";
 		}
 	}
@@ -301,7 +278,7 @@ std::string make_class_meta(const ast::class_info &cls){
 			full_name, member_idx
 		);
 
-		output += make_member_meta(cls, member, member_idx++);
+		output += make_member_meta(tmpl_params, full_name, member, member_idx++);
 		output += "\n";
 	}
 

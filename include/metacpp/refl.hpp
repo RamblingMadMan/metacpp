@@ -11,6 +11,7 @@
 #define METACPP_REFL_HPP 1
 
 #include <cstdlib>
+#include <cstring>
 
 #include "meta.hpp"
 

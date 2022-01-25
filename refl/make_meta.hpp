@@ -381,6 +381,7 @@ std::string make_enum_meta(const ast::enum_info &enm){
 		"{0}"
 		"template<> struct metapp::detail::enum_info_data<{1}>{{\n"
 		"\t"	"using values = metapp::types<{3}>;\n"
+		"\t"	"static constexpr std::string_view name = \"{1}\";\n"
 		"\t"	"static constexpr bool is_scoped = {2};\n"
 		"}};\n",
 		output,

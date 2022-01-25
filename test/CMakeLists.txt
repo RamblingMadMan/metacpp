@@ -5,6 +5,7 @@
 enable_testing()
 
 add_executable(ast-test test.hpp test.cpp)
+add_executable(meta-example example.h example.cpp)
 
 target_compile_features(ast-test PRIVATE cxx_std_20)
 
@@ -17,6 +18,7 @@ endif()
 target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)
 
 target_reflect(ast-test)
+target_reflect(meta-example)
 
 add_test(
 	NAME tool-test

@@ -22,6 +22,14 @@ target_link_libraries(reflpp Boost::system fmt::fmt-header-only metacpp::ast)
 function(target_reflect tgt)
 	message("-- Generating reflection information for ${tgt}")
 
+	if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+		message(WARNING "MSVC not fully supported")
+	else()
+		target_compile_options(${tgt} PUBLIC "-Wno-attributes")
+	endif()
+
+	target_link_libraries(${tgt} PRIVATE metacpp::headers)
+
 	get_target_property(TGT_BINARY_DIR ${tgt} BINARY_DIR)
 	get_target_property(TGT_INCLUDE_DIRS ${tgt} INCLUDE_DIRECTORIES)
 	get_target_property(TGT_SOURCE_DIR ${tgt} SOURCE_DIR)

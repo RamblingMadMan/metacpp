@@ -10,10 +10,9 @@
 #ifndef METACPP_META_HPP
 #define METACPP_META_HPP 1
 
+#include <stdexcept>
 #include <string_view>
 #include <functional>
-
-#include "fmt/format.h"
 
 #include "metacpp/config.hpp"
 
@@ -227,16 +226,12 @@ namespace metapp{
 	 */
 	template<typename ... Ts, typename Fn>
 	void for_all(types<Ts...>, Fn &&f){
-#if __cplusplus >= 202002L
 		if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>> && ...)){
 			(std::forward<Fn>(f)(type<Ts>{}), ...);
 		}
 		else{
 			(std::forward<Fn>(f).template operator()<Ts>(), ...);
 		}
-#else
-		(std::forward<Fn>(f)(type<Ts>{}), ...);
-#endif
 	}
 
 	/**
@@ -245,16 +240,12 @@ namespace metapp{
 	 */
 	template<auto ... Xs, typename Fn>
 	void for_all(values<Xs...>, Fn &&f){
-#if __cplusplus >= 202002L
 		if constexpr((std::is_invocable_v<std::decay_t<Fn>, value<Xs>> && ...)){
 			(std::forward<Fn>(f)(value<Xs>{}), ...);
 		}
 		else{
 			(std::forward<Fn>(f).template operator()<Xs>(), ...);
 		}
-#else
-		(std::forward<Fn>(f)(value<Xs>{}), ...);
-#endif
 	}
 
 	template<typename Ts, typename Fn>
@@ -277,7 +268,12 @@ namespace metapp{
 			private:
 				template<typename Fn, std::size_t ... Is>
 				static constexpr void invoke_impl(Fn &&f, std::index_sequence<Is...>){
-					(std::forward<Fn>(f).template operator()<Ts, Is>(), ...);
+					if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>, std::size_t> && ...)){
+						(std::forward<Fn>(f)(type<Ts>{}, Is), ...);
+					}
+					else{
+						(std::forward<Fn>(f).template operator()<Ts, Is>(), ...);
+					}
 				}
 
 				using indices = std::make_index_sequence<sizeof...(Ts)>;
@@ -294,6 +290,13 @@ namespace metapp{
 			private:
 				template<typename Tup, typename Fn, std::size_t ... Is>
 				static constexpr void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
+					if constexpr((std::is_invocable_v<std::decay_t<Fn>, std::tuple_element<Is, std::decay_t<Tup>>, std::size_t> && ...)){
+						(std::forward<Fn>(f)(std::get<Is>(std::forward<Tup>(tup)), Is), ...);
+					}
+					else{
+						(std::forward<Fn>(f).template operator()<Is>(std::get<Is>(std::forward<Tup>(tup))), ...);
+					}
+
 					(std::forward<Fn>(f).template operator()<Is>(std::get<Is>(std::forward<Tup>(tup))), ...);
 				}
 
@@ -532,7 +535,7 @@ namespace metapp{
 
 	template<typename Class, std::size_t Idx>
 	struct class_method_info{
-		using attributes = typename detail::class_info_data<Class>::attributes;
+		using ptr_type = typename detail::class_method_info_data<Class, Idx>::ptr_type;
 		using result = typename detail::class_method_info_data<Class, Idx>::result;
 		using param_types = typename detail::class_method_info_data<Class, Idx>::param_types;
 		using params = typename detail::class_method_info_data<Class, Idx>::params;
@@ -663,7 +666,7 @@ namespace metapp{
 
 #if __cplusplus >= 202002L
 		template<fixed_str Scope, fixed_str Name>
-		using query_attribute = typename detail::query_attribs_helper<Scope, Name, attributes>::type;
+		using query_attributes = typename detail::query_attribs_helper<Scope, Name, attributes>::type;
 
 		template<fixed_str Name, typename Signature = ignore>
 		using query_methods = typename detail::query_methods_helper<Signature, Name, methods>::type;
@@ -701,6 +704,7 @@ namespace metapp{
 		using values = typename detail::enum_info_data<Enum>::values;
 
 		static constexpr std::string_view name = detail::enum_info_data<Enum>::name;
+		static constexpr bool is_scoped = detail::enum_info_data<Enum>::is_scoped;
 	};
 
 	namespace detail{

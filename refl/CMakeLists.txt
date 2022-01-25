@@ -43,7 +43,12 @@ function(target_reflect tgt)
 	get_target_property(TGT_BINARY_DIR ${tgt} BINARY_DIR)
 	get_target_property(TGT_INCLUDE_DIRS ${tgt} INCLUDE_DIRECTORIES)
 	get_target_property(TGT_SOURCE_DIR ${tgt} SOURCE_DIR)
-	get_target_property(TGT_SOURCES ${tgt} SOURCES)
+
+	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+		get_target_property(TGT_SOURCES ${tgt} INTERFACE_SOURCES)
+	else()
+		get_target_property(TGT_SOURCES ${tgt} SOURCES)
+	endif()
 
 	set_target_properties(
 		${tgt} PROPERTIES

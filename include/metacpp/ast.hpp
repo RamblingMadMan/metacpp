@@ -236,6 +236,7 @@ namespace astpp{
 
 			std::vector<std::string> file_options(const std::filesystem::path &path) const;
 
+			std::vector<std::filesystem::path> all_include_dirs() const;
 			std::vector<std::filesystem::path> file_include_dirs(const std::filesystem::path &path) const;
 
 			struct data;

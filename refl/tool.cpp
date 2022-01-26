@@ -76,7 +76,7 @@ int main(int argc, char *argv[]){
 				return EXIT_FAILURE;
 			}
 
-			output_dir = argv[i];
+			output_dir = fs::path(argv[i]);
 
 			if(!fs::exists(output_dir)){
 				if(!fs::create_directory(output_dir)){
@@ -128,26 +128,37 @@ int main(int argc, char *argv[]){
 
 	auto compile_info = ast::compile_info(build_dir);
 
+	const auto include_dirs = compile_info.all_include_dirs();
+
 	for(const auto &header : headers){
 		const auto abs_header = fs::absolute(header).string();
 
 		auto info = ast::parse(header, compile_info);
 
-		const auto include_dirs = compile_info.file_include_dirs(header);
-
-		auto out_header_path = output_dir / header;
+		auto file_output_dir = output_dir;
 
 		for(auto &&dir : include_dirs){
-			auto abs_dir = fs::absolute(dir).string();
-			if(std::string_view(abs_header).substr(0, abs_dir.size()) == abs_dir){
-				out_header_path = output_dir / std::string_view(abs_header).substr(abs_dir.size());
+			const auto abs_dir = fs::absolute(dir).string();
+			const auto initial_header = std::string_view(abs_header).substr(0, abs_dir.size());
+
+			if(initial_header == abs_dir){
+				const auto abs_header_dir = fs::path(abs_header).parent_path().string();
+
+				const auto rel_header = std::string_view(abs_header_dir).substr(abs_dir.size() + 1);
+
+				file_output_dir = output_dir / rel_header;
+
 				break;
 			}
 		}
 
-		out_header_path.replace_extension(fmt::format(".meta{}", header.extension().string()));
+		const auto header_file = header.filename();
 
-		auto out_source_path = output_dir / header;
+		auto out_header_path = file_output_dir / header_file;
+
+		out_header_path.replace_extension(fmt::format(".meta{}", header_file.extension().string()));
+
+		auto out_source_path = file_output_dir / header_file;
 		out_source_path += ".refl.cpp";
 
 		std::string out_source = fmt::format(

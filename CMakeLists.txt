@@ -8,6 +8,7 @@ project(metacpp VERSION 0.0.1 LANGUAGES C CXX)
 
 include(FetchContent)
 
+option(METACPP_CMAKE_DEBUG "Output additional debug information from CMake" OFF)
 option(METACPP_BUILD_TESTS "Whether to build test targets" ${PROJECT_IS_TOP_LEVEL})
 
 set(

@@ -117,16 +117,18 @@ function(target_reflect tgt)
 				endif()
 			endforeach()
 
-			if(METACPP_CMAKE_DEBUG)
-				message("[DEBUG] Meta information for '${tgt}' output to ${TGT_OUTPUT_DIR}")
-			endif()
-
 			list(APPEND INPUT_HEADERS "${SRC}")
 
-			cmake_path(REPLACE_EXTENSION SRC ".meta.hpp" OUTPUT_VARIABLE TGT_HEADER_OUT)
+			cmake_path(GET SRC EXTENSION TGT_EXTENSION)
+			cmake_path(GET SRC FILENAME TGT_HEADER_OUT)
+			cmake_path(REPLACE_EXTENSION TGT_HEADER_OUT ".meta${TGT_EXTENSION}" OUTPUT_VARIABLE TGT_HEADER_OUT)
 
 			set(TGT_HEADER_OUTPUT "${TGT_OUTPUT_DIR}/${TGT_HEADER_OUT}")
 			set(TGT_SOURCE_OUTPUT "${TGT_OUTPUT_DIR}/${SRC}.refl.cpp")
+
+			if(METACPP_CMAKE_DEBUG)
+				message("[DEBUG] Meta information for '${SRC}' output to ${TGT_HEADER_OUTPUT}")
+			endif()
 
 			cmake_path(ABSOLUTE_PATH TGT_SOURCE_OUTPUT OUTPUT_VARIABLE TGT_SOURCE_OUTPUT)
 
@@ -156,8 +158,8 @@ function(target_reflect tgt)
 	endif()
 
 	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
-		target_include_directories(${tgt} INTERFACE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
+		target_include_directories(${tgt} INTERFACE ${OUTPUT_DIR})
 	else()
-		target_include_directories(${tgt} PRIVATE ${OUTPUT_DIR} ${OUTPUT_DIR}/include)
+		target_include_directories(${tgt} PRIVATE ${OUTPUT_DIR})
 	endif()
 endfunction()

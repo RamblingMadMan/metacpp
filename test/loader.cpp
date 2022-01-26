@@ -2,6 +2,8 @@
 
 #include "metacpp/plugin.hpp"
 
+#include "test/example.meta.h"
+
 int main(int argc, char *argv[]){
 	auto plugs = plugin::nearby_plugins();
 

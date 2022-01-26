@@ -313,6 +313,39 @@ namespace astpp::clang{
 
 			compilation_database(compilation_database&&) = default;
 
+			std::vector<std::string> all_options() const{
+				std::vector<std::string> ret;
+
+				auto cmds = clang_CompilationDatabase_getAllCompileCommands(*this);
+				if(cmds){
+					auto num_commands = clang_CompileCommands_getSize(cmds);
+					ret.reserve(num_commands);
+
+					for(unsigned int i = 0; i < num_commands; i++){
+						auto cmd = clang_CompileCommands_getCommand(cmds, i);
+						if(!cmd){
+							continue;
+						}
+
+						auto num_args = clang_CompileCommand_getNumArgs(cmd);
+
+						// always start from 1 and end 1 before the end
+						// head is compiler executable
+						// last is compiled file
+						for(unsigned int j = 1; j < (num_args - 1); j++){
+							auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
+							ret.emplace_back(std::move(arg));
+						}
+					}
+
+					std::fflush(stdout);
+
+					clang_CompileCommands_dispose(cmds);
+				}
+
+				return ret;
+			}
+
 			std::vector<std::string> file_options(const fs::path &path) const{
 				std::vector<std::string> ret;
 

@@ -4,7 +4,16 @@
 
 enable_testing()
 
-add_plugin(plugin-test test.hpp plugin.cpp)
+add_plugin(
+	plugin-test
+
+	INCLUDE_DIRS
+	include
+
+	SOURCES
+	test.hpp
+	plugin.cpp
+)
 
 add_executable(loader-test include/test/example.h loader.cpp)
 
@@ -21,14 +30,7 @@ set_target_properties(
 	CXX_STANDARD_REQUIRED ON
 )
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	message(WARNING "MSVC not fully supported")
-else()
-	target_compile_options(ast-test PUBLIC "-Wno-attributes")
-	target_compile_options(meta-example PUBLIC "-Wno-attributes")
-	target_compile_options(loader-test PUBLIC "-Wno-attributes")
-endif()
-
+target_include_directories(plugin-test INTERFACE include)
 target_include_directories(loader-test PRIVATE include)
 
 target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)

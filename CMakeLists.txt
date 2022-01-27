@@ -8,7 +8,6 @@ project(metacpp VERSION 0.0.1 LANGUAGES C CXX)
 
 include(FetchContent)
 
-option(METACPP_CMAKE_DEBUG "Output additional debug information from CMake" OFF)
 option(METACPP_BUILD_TESTS "Whether to build test targets" ${PROJECT_IS_TOP_LEVEL})
 
 set(
@@ -46,6 +45,16 @@ target_include_directories(metacpp-headers INTERFACE ${METACPP_INCLUDE_DIRS})
 
 add_library(metacpp::headers ALIAS metacpp-headers)
 
+add_library(metacpp-attribs INTERFACE)
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+	message(WARNING "MSVC not fully supported")
+else()
+	target_compile_options(metacpp-attribs INTERFACE "-Wno-attributes")
+endif()
+
+add_library(metacpp::attribs ALIAS metacpp-attribs)
+
 find_package(Boost CONFIG COMPONENTS system dll)
 
 if(NOT Boost_system_FOUND)
@@ -75,33 +84,6 @@ endif()
 add_subdirectory(ast)
 add_subdirectory(plugin)
 add_subdirectory(refl)
-
-function(add_plugin tgt)
-	add_library(${tgt} SHARED ${ARGN})
-	target_reflect(${tgt})
-endfunction()
-
-function(target_link_plugins tgt)
-	target_link_libraries(${tgt} PRIVATE metacpp::headers metacpp::plugin)
-
-	add_custom_command(
-		TARGET ${tgt}
-		POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_PROPERTY:${tgt},BINARY_DIR>
-		VERBATIM
-	)
-
-	foreach(plugin IN LISTS ARGN)
-		add_dependencies(${tgt} ${plugin})
-
-		add_custom_command(
-			TARGET ${tgt}
-			POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${plugin}> $<TARGET_PROPERTY:${tgt},BINARY_DIR>
-			VERBATIM
-		)
-	endforeach()
-endfunction()
 
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)

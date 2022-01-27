@@ -224,3 +224,9 @@ int main(int argc, char *argv[]){
 }
 
 ```
+
+## Bugs
+
+Still in early development phase, so lots of bugs to be found.
+
+If you do find any bugs; please, create an issue in this repo so I can prompty get them fixed.

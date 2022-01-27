@@ -7,8 +7,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#ifndef TEST_HPP
-#define TEST_HPP 1
+#ifndef TEST_TEST_HPP
+#define TEST_TEST_HPP 1
 
 #include <string_view>
 
@@ -84,4 +84,4 @@ class [[test::predefined]] TestPredefined{};
 inline void testFn(int a, TestClass b){
 }
 
-#endif // !TEST_HPP
+#endif // !TEST_TEST_HPP

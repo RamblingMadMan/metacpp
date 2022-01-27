@@ -20,7 +20,7 @@ target_compile_features(reflpp PRIVATE cxx_std_17)
 target_link_libraries(reflpp Boost::system fmt::fmt-header-only metacpp::ast)
 
 function(target_reflect tgt)
-	message("-- Generating reflection information for ${tgt}")
+	message(STATUS "Generating reflection information for ${tgt}")
 
 	get_target_property(TGT_TYPE ${tgt} TYPE)
 
@@ -42,7 +42,10 @@ function(target_reflect tgt)
 
 	get_target_property(TGT_BINARY_DIR ${tgt} BINARY_DIR)
 	get_target_property(TGT_INCLUDE_DIRS ${tgt} INCLUDE_DIRECTORIES)
+	get_target_property(TGT_INTERFACE_INCLUDE_DIRS ${tgt} INTERFACE_INCLUDE_DIRECTORIES)
 	get_target_property(TGT_SOURCE_DIR ${tgt} SOURCE_DIR)
+
+	list(APPEND TGT_INCLUDE_DIRS "${TGT_INTERFACE_INCLUDE_DIRS}")
 
 	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
 		get_target_property(TGT_SOURCES ${tgt} INTERFACE_SOURCES)
@@ -83,7 +86,9 @@ function(target_reflect tgt)
 
 	set(INPUT_HEADERS "")
 
-	set(OUTPUT_DIR "${TGT_BINARY_DIR}/reflect")
+	string(MD5 TGT_HASH "${tgt}")
+
+	set(OUTPUT_DIR "${TGT_BINARY_DIR}/reflect/${TGT_HASH}")
 	set(OUTPUT_HEADERS "")
 	set(OUTPUT_SOURCES "")
 
@@ -91,6 +96,8 @@ function(target_reflect tgt)
 		cmake_path(GET SRC EXTENSION TGT_SRC_EXT)
 		if(TGT_SRC_EXT MATCHES "(\\.hpp)|(\\.h)")
 			cmake_path(ABSOLUTE_PATH SRC OUTPUT_VARIABLE SRC_ABSOLUTE)
+
+			message(DEBUG "header path:       ${SRC_ABSOLUTE}")
 
 			set(TGT_OUTPUT_DIR "${OUTPUT_DIR}")
 
@@ -100,18 +107,17 @@ function(target_reflect tgt)
 				string(LENGTH "${DIR_ABSOLUTE}/" DIR_LENGTH)
 				string(SUBSTRING "${SRC_ABSOLUTE}" 0 ${DIR_LENGTH} PATH_INITIAL)
 
+				message(DEBUG "include dir:       ${DIR_ABSOLUTE}")
+
 				if(PATH_INITIAL STREQUAL "${DIR_ABSOLUTE}/")
 					cmake_path(GET SRC_ABSOLUTE PARENT_PATH PATH_DIR)
 					string(SUBSTRING "${PATH_DIR}" ${DIR_LENGTH} -1 PATH_RELATIVE)
 					set(TGT_OUTPUT_DIR "${OUTPUT_DIR}/${PATH_RELATIVE}")
 
-					if(METACPP_CMAKE_DEBUG)
-						message("[DEBUG] absolute path:     ${SRC_ABSOLUTE}")
-						message("[DEBUG] include dir:       ${DIR_ABSOLUTE}")
-						message("[DEBUG] path initial:      ${PATH_INITIAL}")
-						message("[DEBUG] path parent:       ${PATH_DIR}")
-						message("[DEBUG] path relative:     ${PATH_RELATIVE}")
-					endif(METACPP_CMAKE_DEBUG)
+					message(DEBUG "absolute path:     ${SRC_ABSOLUTE}")
+					message(DEBUG "path initial:      ${PATH_INITIAL}")
+					message(DEBUG "path parent:       ${PATH_DIR}")
+					message(DEBUG "path relative:     ${PATH_RELATIVE}")
 
 					break()
 				endif()
@@ -120,15 +126,14 @@ function(target_reflect tgt)
 			list(APPEND INPUT_HEADERS "${SRC}")
 
 			cmake_path(GET SRC EXTENSION TGT_EXTENSION)
+			cmake_path(GET SRC FILENAME TGT_HEADER)
 			cmake_path(GET SRC FILENAME TGT_HEADER_OUT)
 			cmake_path(REPLACE_EXTENSION TGT_HEADER_OUT ".meta${TGT_EXTENSION}" OUTPUT_VARIABLE TGT_HEADER_OUT)
 
 			set(TGT_HEADER_OUTPUT "${TGT_OUTPUT_DIR}/${TGT_HEADER_OUT}")
-			set(TGT_SOURCE_OUTPUT "${TGT_OUTPUT_DIR}/${SRC}.refl.cpp")
+			set(TGT_SOURCE_OUTPUT "${TGT_OUTPUT_DIR}/${TGT_HEADER}.refl.cpp")
 
-			if(METACPP_CMAKE_DEBUG)
-				message("[DEBUG] Meta information for '${SRC}' output to ${TGT_HEADER_OUTPUT}")
-			endif()
+			message(DEBUG "Meta information for '${SRC}' output to ${TGT_HEADER_OUTPUT}")
 
 			list(APPEND OUTPUT_HEADERS "${TGT_HEADER_OUTPUT}")
 			list(APPEND OUTPUT_SOURCES "${TGT_SOURCE_OUTPUT}")

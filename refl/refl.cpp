@@ -123,3 +123,16 @@ refl::enum_info refl::reflect_enum(std::string_view name){
 	auto ret = reflect(name);
 	return dynamic_cast<enum_info>(ret);
 }
+
+bool refl::has_base(refl::class_info type, refl::class_info base) noexcept{
+	if(!type || !base) return false;
+
+	for(std::size_t i = 0; i < type->num_bases(); i++){
+		auto type_base = type->base(i);
+		if(type_base == base || refl::has_base(type_base, base)){
+			return true;
+		}
+	}
+
+	return false;
+}

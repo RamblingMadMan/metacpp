@@ -65,6 +65,8 @@ namespace reflpp{
 		return ret;
 	}
 
+	bool has_base(class_info type, class_info base) noexcept;
+
 	struct args_pack_base{
 		virtual std::size_t size() const noexcept = 0;
 		virtual void *arg(std::size_t idx) const noexcept = 0;

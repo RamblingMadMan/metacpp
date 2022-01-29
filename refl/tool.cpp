@@ -111,8 +111,6 @@ std::string make_function_refl(const ast::function_info &fn){
 		return "";
 	}
 
-	std::string_view param_name_result = "\"\"", param_type_result = "nullptr";
-
 	if(!fn.param_types.empty()){
 		for(std::size_t i = 0; i < fn.param_types.size(); i++){
 			auto &&param_name = fn.param_names[i];
@@ -124,9 +122,6 @@ std::string make_function_refl(const ast::function_info &fn){
 
 		param_names_arr.erase(0, 2);
 		param_types_arr.erase(0, 2);
-
-		param_name_result = "idx >= num_params() ? \"\" : arr[idx]";
-		param_type_result = "idx >= num_params() ? nullptr : arr[idx]";
 	}
 
 	return fmt::format(
@@ -137,18 +132,17 @@ std::string make_function_refl(const ast::function_info &fn){
 		"\t"	"\t"	"std::size_t num_params() const noexcept override{{ return {2}; }}\n"
 		"\t"	"\t"	"std::string_view param_name(std::size_t idx) const noexcept override{{\n"
 		"\t"	"\t"	"\t"	"constexpr std::string_view arr[] = {{ {3} }};\n"
-		"\t"	"\t"	"\t"	"return {5};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_params() ? \"\" : arr[idx];\n"
 		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"reflpp::type_info param_type(std::size_t idx) const noexcept override{{\n"
 		"\t"	"\t"	"\t"	"static const reflpp::type_info arr[] = {{ {4} }};\n"
-		"\t"	"\t"	"\t"	"return {6};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_params() ? nullptr : arr[idx];\n"
 		"\t"	"\t"	"}}\n"
 		"\t"	"}} static ret;\n"
 		"\t"	"return &ret;\n"
 		"}}\n",
 		full_name, fn.result_type, fn.param_types.size(),
-		param_names_arr, param_types_arr,
-		param_name_result, param_type_result
+		param_names_arr, param_types_arr
 	);
 }
 

@@ -26,6 +26,10 @@ compile_info::compile_info(const fs::path &build_dir)
 
 compile_info::~compile_info(){}
 
+std::vector<std::string> compile_info::all_options() const{
+	return impl->db.all_options();
+}
+
 std::vector<std::string> compile_info::file_options(const std::filesystem::path &path) const{
 	return impl->db.file_options(path);
 }

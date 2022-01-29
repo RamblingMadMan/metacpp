@@ -688,14 +688,28 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 		return std::make_pair(&res->second.first, &res->second.second);
 	};
 
+	auto include_dirs = info.all_include_dirs();
 	auto options = info.file_options(path);
 
 	bool standard_given = false;
+
+	while(1){
+		auto res = std::find_if(
+			options.begin(), options.end(),
+			[](auto &&opt){ return std::string_view(opt).substr(0, 2) == "-I"; }
+		);
+		if(res == options.end()) break;
+		else options.erase(res);
+	}
 
 	for(auto &&opt : options){
 		if(std::string_view(opt).substr(0, 5) == "-std="){
 			standard_given = true;
 		}
+	}
+
+	for(auto &&dir : include_dirs){
+		options.emplace_back(fmt::format("-I{}", dir.c_str()));
 	}
 
 	if(!standard_given){

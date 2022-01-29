@@ -12,7 +12,6 @@ add_plugin(
 
 	SOURCES
 	test.hpp
-	plugin.cpp
 )
 
 add_executable(loader-test include/test/example.h loader.cpp)

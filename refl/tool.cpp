@@ -17,27 +17,95 @@
 
 namespace fs = std::filesystem;
 
+std::string make_method_refl(const ast::class_method_info &method, std::size_t idx){
+	std::string names_arr, types_arr;
+
+	if(!method.param_names.empty()){
+		for(std::size_t i = 0; i < method.param_names.size(); i++){
+			auto &&name = method.param_names[i];
+			auto &&type = method.param_types[i];
+			names_arr += fmt::format(", \"{}\"", name);
+			types_arr += fmt::format(", refl::reflect<{}>()", type);
+		}
+
+		names_arr.erase(0, 2);
+		types_arr.erase(0, 2);
+	}
+
+	return fmt::format(
+		"\t"	"struct method_info_impl{0}: reflpp::detail::class_method_helper{{\n"
+		"\t"	"\t"	"reflpp::type_info result_type() const noexcept override{{ static auto ret = reflpp::reflect<{1}>(); return ret; }}\n"
+		"\t"	"\t"	"std::size_t num_params() const noexcept override{{ return {2}; }}\n"
+		"\t"	"\t"	"std::string_view param_name(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"constexpr std::string_view arr[] = {{ {3} }};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_params() ? \"\" : arr[idx];\n"
+		"\t"	"\t"	"}}\n"
+		"\t"	"\t"	"reflpp::type_info param_type(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"static const reflpp::type_info arr[] = {{ {4} }};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_params() ? nullptr : arr[idx];\n"
+		"\t"	"\t"	"}}\n"
+		"\t"	"}} static param{0};\n",
+		idx, method.result_type, method.param_names.size(),
+		names_arr, types_arr
+	);
+}
+
 std::string make_class_refl(const ast::class_info &cls){
 	if(cls.is_template) return "";
 
+	std::string full_name = cls.name;
+
+	std::string methods_output;
+	std::string bases_arr, methods_arr;
+
+	if(!cls.bases.empty()){
+		for(auto &&base : cls.bases){
+			bases_arr += fmt::format(", reflpp::reflect<{}>()", base.name);
+		}
+
+		bases_arr.erase(0, 2);
+	}
+
+	if(!cls.methods.empty()){
+		std::size_t method_idx = 0;
+		for(auto &&methods : cls.methods){
+			for(auto &&method : methods.second){
+				methods_arr += fmt::format(", &param{}", method_idx);
+				methods_output += make_method_refl(*method, method_idx++);
+				methods_output += "\n";
+			}
+		}
+
+		methods_arr.erase(0, 2);
+	}
+
 	return fmt::format(
 		"template<> REFLCPP_EXPORT_SYMBOL reflpp::type_info reflpp::detail::type_export<{0}>(){{\n"
+		"{5}"
 		"\t"	"struct class_info_impl: detail::info_helper_base<{0}, detail::class_info_helper>{{\n"
 		"\t"	"\t"	"std::size_t num_methods() const noexcept override{{ return {1}; }}\n"
-		"\t"	"\t"	"reflpp::class_method_info method(std::size_t) const noexcept override{{ return nullptr; }}\n"
+		"\t"	"\t"	"reflpp::class_method_info method(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"static const reflpp::class_method_info arr[] = {{ {4} }};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_methods() ? nullptr : arr[idx];\n"
+		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"std::size_t num_bases() const noexcept override{{ return {2}; }}\n"
-		"\t"	"\t"	"reflpp::class_info base(std::size_t) const noexcept override{{ return nullptr; }}\n"
+		"\t"	"\t"	"reflpp::class_info base(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"reflpp::class_info arr[] = {{ {3} }};\n"
+		"\t"	"\t"	"\t"	"return idx >= num_bases() ? nullptr : arr[idx];\n"
+		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"void *cast_to_base(void*, std::size_t i) const noexcept override{{ return nullptr; }}\n"
 		"\t"	"}} static ret;\n"
 		"\t"	"return &ret;\n"
 		"}}\n",
-		cls.name, cls.methods.size(), cls.bases.size()
+		full_name, cls.methods.size(), cls.bases.size(), bases_arr, methods_arr, methods_output
 	);
 }
 
 std::string make_function_refl(const ast::function_info &fn){
 	std::string full_name = fn.name;
 	std::string param_names_arr, param_types_arr;
+
+	std::string_view param_name_result = "\"\"", param_type_result = "nullptr";
 
 	if(!fn.param_types.empty()){
 		for(std::size_t i = 0; i < fn.param_types.size(); i++){
@@ -50,26 +118,31 @@ std::string make_function_refl(const ast::function_info &fn){
 
 		param_names_arr.erase(0, 2);
 		param_types_arr.erase(0, 2);
+
+		param_name_result = "idx >= num_params() ? \"\" : arr[idx]";
+		param_type_result = "idx >= num_params() ? nullptr : arr[idx]";
 	}
 
 	return fmt::format(
 		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<{0}>(){{\n"
 		"\t"	"struct function_info_impl: detail::function_info_helper{{\n"
-		"\t"	"\t"	"std::string_view name() const noexcept override{{ return \"{0}\"; }}"
-		"\t"	"\t"	"reflpp::type_info result_type() const noexcept override{{ return reflpp::reflect<{1}>(); }}"
-		"\t"	"\t"	"std::size_t num_params() const noexcept override{{ return {2}; }}"
+		"\t"	"\t"	"std::string_view name() const noexcept override{{ return \"{0}\"; }}\n"
+		"\t"	"\t"	"reflpp::type_info result_type() const noexcept override{{ return reflpp::reflect<{1}>(); }}\n"
+		"\t"	"\t"	"std::size_t num_params() const noexcept override{{ return {2}; }}\n"
 		"\t"	"\t"	"std::string_view param_name(std::size_t idx) const noexcept override{{\n"
 		"\t"	"\t"	"\t"	"constexpr std::string_view arr[] = {{ {3} }};\n"
-		"\t"	"\t"	"\t"	"return arr[idx];\n"
-		"\t"	"\t"	"}}"
+		"\t"	"\t"	"\t"	"return {5};\n"
+		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"reflpp::type_info param_type(std::size_t idx) const noexcept override{{\n"
 		"\t"	"\t"	"\t"	"static const reflpp::type_info arr[] = {{ {4} }};\n"
-		"\t"	"\t"	"\t"	"return arr[idx];\n"
-		"\t"	"\t"	"}}"
+		"\t"	"\t"	"\t"	"return {6};\n"
+		"\t"	"\t"	"}}\n"
 		"\t"	"}} static ret;\n"
 		"\t"	"return &ret;\n"
 		"}}\n",
-		full_name, fn.result_type, fn.param_types.size(), param_names_arr, param_types_arr
+		full_name, fn.result_type, fn.param_types.size(),
+		param_names_arr, param_types_arr,
+		param_name_result, param_type_result
 	);
 }
 

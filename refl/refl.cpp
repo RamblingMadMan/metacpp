@@ -17,32 +17,25 @@
 namespace {
 	class type_loader{
 		public:
-			type_loader()
-				: program_symbols(plugin::self()->symbols())
-			{}
+			type_loader(){}
 
 			~type_loader(){}
 
 			refl::type_info load(std::string_view name){
-				auto program_lib = plugin::self();
+				auto registered_res = m_types.find(name);
+				if(registered_res != m_types.end()){
+					return registered_res->second;
+				}
 
-				for(auto &&sym : program_symbols){
-					auto readable = program_lib->demangle(sym);
+				auto exported_types = plugin::self()->exported_types();
 
-					constexpr std::string_view export_fn_name = "reflpp::detail::type_export";
+				auto res = std::find_if(
+					exported_types.begin(), exported_types.end(),
+					[&](auto type){ return type->name() == name; }
+				);
 
-					auto exported_fn_res = readable.find(export_fn_name);
-					if(exported_fn_res != std::string::npos){
-						auto sym_ptr = program_lib->get_symbol(sym);
-						if(!sym_ptr){
-							return nullptr;
-						}
-
-						auto type_exporter = reinterpret_cast<reflpp::detail::type_export_fn>(sym_ptr);
-						auto t = type_exporter();
-						if(t->name() == name) return t;
-						else continue;
-					}
+				if(res != exported_types.end()){
+					return *res;
 				}
 
 				fmt::print(stderr, "Failed to import reflected type '{}'\n", name);
@@ -50,9 +43,23 @@ namespace {
 				return nullptr;
 			}
 
+			bool register_type(refl::type_info info){
+				auto res = m_types.find(info->name());
+				if(res != m_types.end()){
+					return false;
+				}
+
+				auto emplace_res = m_types.try_emplace(info->name(), info);
+				if(!emplace_res.second){
+					return false;
+				}
+
+				return true;
+			}
+
 		private:
-			std::vector<std::string> program_symbols;
-	};
+			std::unordered_map<std::string_view, refl::type_info> m_types;
+	} static loader;
 
 	struct void_info_helper: refl::detail::type_info_helper{
 		std::string_view name() const noexcept override{ return "void"; }
@@ -109,8 +116,11 @@ refl::num_info refl::detail::float_info(std::size_t bits) noexcept{
 	}
 }
 
+bool refl::detail::register_type(refl::type_info info){
+	return loader.register_type(info);
+}
+
 refl::type_info refl::reflect(std::string_view name){
-	static type_loader loader;
 	return loader.load(name);
 }
 

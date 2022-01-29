@@ -138,6 +138,7 @@ namespace {
 						auto f = reinterpret_cast<refl::detail::type_export_fn>(ptr);
 						assert(f);
 						auto type = m_types.emplace_back(f());
+						refl::detail::register_type(type);
 						continue;
 					}
 				}

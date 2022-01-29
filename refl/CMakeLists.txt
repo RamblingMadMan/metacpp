@@ -36,9 +36,9 @@ function(target_reflect tgt)
 	get_target_property(TGT_TYPE ${tgt} TYPE)
 
 	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
-		target_link_libraries(${tgt} INTERFACE metacpp::headers)
+		target_link_libraries(${tgt} INTERFACE metacpp::headers metacpp::refl)
 	else()
-		target_link_libraries(${tgt} PRIVATE metacpp::headers)
+		target_link_libraries(${tgt} PRIVATE metacpp::headers metacpp::refl)
 	endif()
 
 	if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")

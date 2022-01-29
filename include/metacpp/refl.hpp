@@ -114,6 +114,10 @@ namespace reflpp{
 			void destroy(void *p) const noexcept override{ std::destroy_at(reinterpret_cast<T*>(p)); }
 		};
 
+		struct ref_info_helper: type_info_helper{
+			virtual type_info refered() const noexcept = 0;
+		};
+
 		type_info void_info() noexcept;
 		int_info int_info(std::size_t bits, bool is_signed) noexcept;
 		num_info float_info(std::size_t bits) noexcept;
@@ -179,6 +183,45 @@ namespace reflpp{
 			virtual const enum_value_helper *value(std::size_t idx) const noexcept = 0;
 		};
 
+		bool register_type(type_info info);
+
+		template<typename T>
+		struct reflect_simple{
+			static auto reflect(){
+				if constexpr(std::is_class_v<T>){
+					struct class_info_impl: info_helper_base<T, class_info_helper>{
+						std::size_t num_methods() const noexcept override{ return 0; }
+						const class_method_helper *method(std::size_t idx) const noexcept override{ return nullptr; }
+
+						std::size_t num_bases() const noexcept override{ return 0; }
+						class_info base(std::size_t i) const noexcept override{ return nullptr; }
+
+						void *cast_to_base(void *self, std::size_t idx) const noexcept override{ return nullptr; }
+					} static ret;
+					return &ret;
+				}
+				else{
+					struct type_info_impl: info_helper_base<T, type_info_helper>{} static ret;
+					return &ret;
+				}
+			}
+		};
+
+		template<typename T>
+		struct reflect_helper<T, std::enable_if_t<std::is_reference_v<T>>>{
+			static type_info reflect(){
+				struct ref_info_impl: ref_info_helper{
+					ref_info_impl(){ register_type(this); }
+					std::string_view name() const noexcept override{ return metapp::type_name<T>; }
+					std::size_t size() const noexcept override{ return sizeof(void*); }
+					std::size_t alignment() const noexcept override{ return alignof(void*); }
+					void destroy(void *p) const noexcept override{ }
+					type_info refered() const noexcept override{ static auto ret = reflpp::reflect<std::remove_reference_t<T>>(); return ret; }
+				} static ret;
+				return &ret;
+			}
+		};
+
 		template<typename T>
 		struct reflect_helper<T, std::enable_if_t<std::is_void_v<T>>>{
 			static type_info reflect(){ return void_info(); }
@@ -196,7 +239,14 @@ namespace reflpp{
 
 		template<typename T>
 		struct reflect_helper<T, std::enable_if_t<std::is_class_v<T>>>{
-			static class_info reflect(){ return reflect_class(metapp::type_name<T>); }
+			static class_info reflect(){
+				if(auto ret = reflect_class(metapp::type_name<T>); ret){
+					return ret;
+				}
+				else{
+					return reflect_simple<T>::reflect();
+				}
+			}
 		};
 
 		template<typename T>

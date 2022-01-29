@@ -741,7 +741,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 			return; // skip using directives
 		}
 
-		auto entity = ast::detail::parse_namespace_inner(path, ret, ret.global, cursor, "::");
+		auto entity = ast::detail::parse_namespace_inner(path, ret, ret.global, cursor, "");
 		if(!entity){
 			//ast::detail::print_parse_warning(path, "Unrecognized cursor '{}' of kind '{}'", cursor.spelling(), cursor.kind_spelling());
 		}

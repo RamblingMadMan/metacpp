@@ -395,22 +395,21 @@ namespace astpp::clang{
 			translation_unit(CXIndex index, const fs::path &path, const std::vector<std::string> &options = {})
 				: handle(nullptr)
 			{
-				const char *option_cstrs[128];
+				std::vector<const char*> option_cstrs;
+				option_cstrs.reserve(options.size());
 
-				if(options.size() > 128){
-					throw std::runtime_error("internal error: buffer size too small, too many compile options");
-				}
-
-				for(std::size_t i = 0; i < options.size(); i++){
-					option_cstrs[i] = options[i].c_str();
-				}
+				std::transform(
+					options.begin(), options.end(),
+					std::back_inserter(option_cstrs),
+					[](const std::string &opt){ return opt.c_str(); }
+				);
 
 				const auto num_options = static_cast<unsigned int>(options.size());
 
 				CXTranslationUnit tu = nullptr;
 				auto parse_err = clang_parseTranslationUnit2(
 					index, path.c_str(),
-					option_cstrs, num_options,
+					option_cstrs.data(), num_options,
 					nullptr, 0,
 					CXTranslationUnit_SkipFunctionBodies | CXTranslationUnit_KeepGoing,
 					&tu

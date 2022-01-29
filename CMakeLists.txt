@@ -6,9 +6,19 @@ cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 
 project(metacpp VERSION 0.0.1 LANGUAGES C CXX)
 
-include(FetchContent)
+###################
+# Project Options #
+###################
 
 option(METACPP_BUILD_TESTS "Whether to build test targets" ${PROJECT_IS_TOP_LEVEL})
+set(METACPP_SMALL_SIZE 16 CACHE STRING "Size considered 'small'")
+
+#########################
+# Project Configuration #
+#########################
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT METACPP_IPO_SUPPORTED OUTPUT METACPP_IPO_ERROR)
 
 set(
 	METACPP_INCLUDE_DIR
@@ -20,8 +30,6 @@ set(
 	README.md
 	LICENSE
 )
-
-configure_file(${METACPP_INCLUDE_DIR}/metacpp/config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/metacpp/config.hpp)
 
 set(
 	METACPP_INCLUDE_DIRS
@@ -39,21 +47,13 @@ set(
 	${CMAKE_CURRENT_BINARY_DIR}/include/metacpp/config.hpp
 )
 
-add_library(metacpp-headers INTERFACE ${METACPP_RESOURCES} ${METACPP_INCLUDES})
-target_compile_features(metacpp-headers INTERFACE cxx_std_17)
-target_include_directories(metacpp-headers INTERFACE ${METACPP_INCLUDE_DIRS})
+configure_file(include/metacpp/config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/metacpp/config.hpp)
 
-add_library(metacpp::headers ALIAS metacpp-headers)
+################
+# Dependencies #
+################
 
-add_library(metacpp-attribs INTERFACE)
-
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	message(WARNING "MSVC not fully supported")
-else()
-	target_compile_options(metacpp-attribs INTERFACE "-Wno-attributes")
-endif()
-
-add_library(metacpp::attribs ALIAS metacpp-attribs)
+include(FetchContent)
 
 find_package(Boost CONFIG COMPONENTS system dll)
 
@@ -80,6 +80,27 @@ if(NOT fmt_FOUND)
 
 	FetchContent_MakeAvailable(fmtlib)
 endif()
+
+###################
+# Project Targets #
+###################
+
+add_library(metacpp-headers INTERFACE ${METACPP_RESOURCES} ${METACPP_INCLUDES})
+target_compile_features(metacpp-headers INTERFACE cxx_std_17)
+target_include_directories(metacpp-headers INTERFACE ${METACPP_INCLUDE_DIRS})
+
+add_library(metacpp::headers ALIAS metacpp-headers)
+
+add_library(metacpp-attribs INTERFACE)
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+	message(WARNING "MSVC not fully supported")
+else()
+	target_compile_options(metacpp-attribs INTERFACE "-Wno-attributes")
+endif()
+
+add_library(metacpp::attribs ALIAS metacpp-attribs)
+add_library(metapp::attribs ALIAS metacpp-attribs)
 
 add_subdirectory(ast)
 add_subdirectory(plugin)

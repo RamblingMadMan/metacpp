@@ -37,6 +37,13 @@ target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)
 target_link_libraries(loader-test PRIVATE fmt::fmt-header-only)
 target_link_plugins(loader-test plugin-test)
 
+if(METACPP_IPO_SUPPORTED)
+	set_target_properties(
+		ast-test meta-example loader-test PROPERTIES
+		INTERPROCEDURAL_OPTIMIZATION ON
+	)
+endif()
+
 target_reflect(loader-test)
 target_reflect(ast-test)
 target_reflect(meta-example)

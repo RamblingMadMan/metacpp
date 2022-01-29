@@ -672,6 +672,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 		options.insert(options.begin(), "-std=c++17");
 	}
 
+	options.emplace_back("-Wno-ignored-optimization-argument");
+
 	clang::translation_unit tu(index, path, options);
 
 	const unsigned int num_diag = clang_getNumDiagnostics(tu);
@@ -685,9 +687,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 
 		if(err_str.find("error:") != std::string::npos){
 			found_err = true;
+			fmt::print(stderr, "{}\n", err_str);
 		}
-
-		fmt::print(stderr, "{}\n", err_str);
 	}
 
 	if(found_err){

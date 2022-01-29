@@ -5,19 +5,25 @@
 find_package(Clang REQUIRED)
 
 add_library(metacpp-ast clang.hpp compile_info.cpp parse.cpp)
+add_library(metacpp::ast ALIAS metacpp-ast)
+add_library(metapp::ast ALIAS metacpp-ast)
 
 target_compile_features(metacpp-ast PUBLIC cxx_std_17)
 
 target_link_libraries(
-	metacpp-ast PRIVATE libclang
+	metacpp-ast PUBLIC metacpp::headers fmt::fmt-header-only
 )
 
 target_link_libraries(
-	metacpp-ast PUBLIC metacpp::headers fmt::fmt-header-only
+	metacpp-ast PRIVATE libclang
 )
 
 target_include_directories(
 	metacpp-ast PRIVATE ${CLANG_INCLUDE_DIRS}
 )
 
-add_library(metacpp::ast ALIAS metacpp-ast)
+if(METACPP_IPO_SUPPORTED)
+	set_target_properties(
+		metacpp-ast PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON
+	)
+endif()

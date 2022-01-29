@@ -1,10 +1,18 @@
-find_package(Boost REQUIRED COMPONENTS system)
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 add_library(metacpp-plugin STATIC plugin.cpp)
+add_library(metacpp::plugin ALIAS metacpp-plugin)
+add_library(metapp::plugin ALIAS metacpp-plugin)
 
 target_link_libraries(metacpp-plugin PRIVATE metacpp::refl Boost::system)
 
-add_library(metacpp::plugin ALIAS metacpp-plugin)
+if(METACPP_IPO_SUPPORTED)
+	set_target_properties(
+		metacpp-plugin PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON
+	)
+endif()
 
 function(add_plugin tgt)
 	add_library(${tgt} SHARED)

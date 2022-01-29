@@ -237,6 +237,8 @@ namespace astpp::clang{
 
 			CXCursorKind kind() const noexcept{ return clang_getCursorKind(m_handle); }
 
+			CXType type() const noexcept{ return clang_getCursorType(m_handle); }
+
 			class tokens tokens() const noexcept{ return clang::tokens(m_handle); }
 
 			std::string spelling(){

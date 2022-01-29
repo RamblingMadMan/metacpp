@@ -494,6 +494,33 @@ namespace astpp::detail{
 
 		ret.name = c.spelling();
 
+		auto fn_type = c.type();
+		auto fn_type_str = clang::detail::convert_str(clang_getTypeSpelling(fn_type));
+
+		{
+			auto result_type = clang_getResultType(fn_type);
+			auto result_type_str = clang::detail::convert_str(clang_getTypeSpelling(result_type));
+			ret.result_type = std::move(result_type_str);
+		}
+
+		int num_params = clang_Cursor_getNumArguments(c);
+
+		if(num_params > 0){
+			ret.param_names.reserve(num_params);
+			ret.param_types.reserve(num_params);
+
+			for(int i = 0; i < num_params; i++){
+				clang::cursor arg_cursor = clang_Cursor_getArgument(c, i);
+				auto arg_type = arg_cursor.type();
+
+				auto arg_name = arg_cursor.spelling();
+				auto arg_type_name = clang::detail::convert_str(clang_getTypeSpelling(arg_type));
+
+				ret.param_names.emplace_back(std::move(arg_name));
+				ret.param_types.emplace_back(std::move(arg_type_name));
+			}
+		}
+
 		return ret;
 	}
 
@@ -599,6 +626,9 @@ namespace astpp::detail{
 	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c){
 		if(!clang_Location_isFromMainFile(clang_getCursorLocation(c))){
 			return std::nullopt;
+		}
+		else if(auto fn_decl = detail::parse_function_decl(path, infos, c); fn_decl){
+			return std::make_optional<entity>(std::move(*fn_decl));
 		}
 		else if(auto class_decl = detail::parse_class_decl(path, infos, c); class_decl){
 			return std::make_optional<entity>(std::move(*class_decl));

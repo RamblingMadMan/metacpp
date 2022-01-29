@@ -449,6 +449,9 @@ namespace metapp{
 		template<typename Ent, std::size_t AttribIdx, std::size_t Idx>
 		struct attrib_arg_info_data;
 
+		template<auto Fn>
+		struct function_info_data;
+
 		template<typename Ent, std::size_t Idx>
 		struct param_info_data;
 
@@ -502,6 +505,15 @@ namespace metapp{
 		using type = typename detail::param_info_data<Ent, Idx>::type;
 
 		static constexpr std::string_view name = detail::param_info_data<Ent, Idx>::name;
+	};
+
+	template<auto Fn>
+	struct function_info{
+		using type = typename detail::function_info_data<Fn>::type;
+		using result = typename detail::function_info_data<Fn>::result;
+		using params = typename detail::function_info_data<Fn>::params;
+
+		static constexpr std::string_view name = detail::function_info_data<Fn>::name;
 	};
 
 	template<typename Class, std::size_t Idx>

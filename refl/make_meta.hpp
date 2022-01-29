@@ -14,6 +14,56 @@
 
 #include "fmt/format.h"
 
+std::string make_function_meta(
+	const ast::function_info &fn
+){
+	std::string output;
+	std::string param_types_str, params_member_str;
+
+	std::string full_name = fn.name;
+
+	for(std::size_t i = 0; i < fn.param_types.size(); i++){
+		auto &&param_type = fn.param_types[i];
+		auto &&param_name = fn.param_names[i];
+
+		output += fmt::format(
+			"template<> struct metapp::detail::param_info_data<metapp::value<{0}>, {1}>{{\n"
+			"\t"	"using type = {2};\n"
+			"\t"	"static constexpr std::string_view name = \"{0}\";\n"
+			"}};\n"
+			"\n",
+			full_name, i, param_type
+		);
+
+		params_member_str += fmt::format(
+			",\n"
+			"\t"	"\t"	"metapp::param_info<metapp::value<ptr>, {}>",
+			i
+		);
+
+		param_types_str += fmt::format(", {}", param_type);
+	}
+
+	if(!param_types_str.empty()){
+		param_types_str.erase(0, 2);
+
+		params_member_str.erase(0, 1);
+		params_member_str += "\n\t";
+	}
+
+	return fmt::format(
+		"{0}"
+		"template<> struct metapp::detail::function_info_data<{1}>{{\n"
+		"\t"	"static constexpr std::string_view name = \"{1}\";\n"
+		"\t"	"using type = {2}(*)({3});\n"
+		"\t"	"static constexpr type ptr = (type){1};\n"
+		"\t"	"using result = {2};\n"
+		"\t"	"using params = metapp::types<{4}>;\n"
+		"}};\n",
+		output, full_name, fn.result_type, param_types_str, params_member_str
+	);
+}
+
 std::string make_ctor_meta(
 	std::string_view tmpl_params,
 	std::string_view full_name,
@@ -370,6 +420,13 @@ std::string make_enum_meta(const ast::enum_info &enm){
 
 std::string make_namespace_meta(const ast::namespace_info &ns){
 	std::string output;
+
+	for(auto &&fns : ns.functions){
+		for(auto &&fn : fns.second){
+			output += make_function_meta(*fn);
+			output += "\n";
+		}
+	}
 
 	for(auto &&cls : ns.classes){
 		output += make_class_meta(*cls.second);

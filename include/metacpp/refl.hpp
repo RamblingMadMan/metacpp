@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <climits>
 
 #include "meta.hpp"
 
@@ -23,6 +24,9 @@
 namespace reflpp{
 	namespace detail{
 		struct type_info_helper;
+		struct num_info_helper;
+		struct int_info_helper;
+		struct function_info_helper;
 		struct class_info_helper;
 		struct enum_info_helper;
 
@@ -37,6 +41,9 @@ namespace reflpp{
 	};
 
 	using type_info = const detail::type_info_helper*;
+	using num_info = const detail::num_info_helper*;
+	using int_info = const detail::int_info_helper*;
+	using function_info = const detail::function_info_helper*;
 	using class_info = const detail::class_info_helper*;
 	using enum_info = const detail::enum_info_helper*;
 
@@ -46,6 +53,11 @@ namespace reflpp{
 	type_info reflect(std::string_view name);
 	class_info reflect_class(std::string_view name);
 	enum_info reflect_enum(std::string_view name);
+
+	template<typename Ret, typename ... Args>
+	function_info reflect(Ret(*ptr)(Args...)){
+		return nullptr;
+	}
 
 	template<typename T>
 	auto reflect(){
@@ -92,6 +104,49 @@ namespace reflpp{
 			virtual void destroy(void *p) const noexcept = 0;
 		};
 
+		template<typename T, typename Helper>
+		struct info_helper_base: Helper{
+			std::string_view name() const noexcept override{ return metapp::type_name<T>; }
+			std::size_t size() const noexcept override{ return sizeof(T); }
+			std::size_t alignment() const noexcept override{ return alignof(T); }
+			void destroy(void *p) const noexcept override{ std::destroy_at(reinterpret_cast<T*>(p)); }
+		};
+
+		type_info void_info() noexcept;
+		int_info int_info(std::size_t bits, bool is_signed) noexcept;
+		num_info float_info(std::size_t bits) noexcept;
+
+		struct num_info_helper: type_info_helper{
+			virtual bool is_floating_point() const noexcept = 0;
+			virtual bool is_integer() const noexcept = 0;
+		};
+
+		struct int_info_helper: num_info_helper{
+			bool is_floating_point() const noexcept override{ return false; }
+			bool is_integer() const noexcept override{ return true; }
+
+			virtual bool is_signed() const noexcept = 0;
+		};
+
+		template<typename T>
+		struct float_info_helper_impl: info_helper_base<float_info_helper_impl<T>, num_info_helper>{
+			bool is_floating_point() const noexcept override{ return true; }
+			bool is_integer() const noexcept override{ return false; }
+		};
+
+		template<typename T>
+		struct int_info_helper_impl: info_helper_base<int_info_helper_impl<T>, int_info_helper>{
+			bool is_signed() const noexcept override{ return std::is_signed_v<T>; }
+		};
+
+		struct function_info_helper{
+			virtual std::string_view name() const noexcept = 0;
+			virtual type_info result_type() const noexcept = 0;
+			virtual std::size_t num_params() const noexcept = 0;
+			virtual std::string_view param_name(std::size_t idx) const noexcept = 0;
+			virtual type_info param_type(std::size_t idx) const noexcept = 0;
+		};
+
 		struct class_member_helper{};
 
 		struct class_method_helper{
@@ -122,12 +177,19 @@ namespace reflpp{
 			virtual const enum_value_helper *value(std::size_t idx) const noexcept = 0;
 		};
 
-		template<typename T, typename Helper>
-		struct info_helper_base: Helper{
-			std::string_view name() const noexcept override{ return metapp::type_name<T>; }
-			std::size_t size() const noexcept override{ return sizeof(T); }
-			std::size_t alignment() const noexcept override{ return alignof(T); }
-			void destroy(void *p) const noexcept override{ std::destroy_at(reinterpret_cast<T*>(p)); }
+		template<typename T>
+		struct reflect_helper<T, std::enable_if_t<std::is_void_v<T>>>{
+			static type_info reflect(){ return void_info(); }
+		};
+
+		template<typename Int>
+		struct reflect_helper<Int, std::enable_if_t<std::is_integral_v<Int>>>{
+			static reflpp::int_info reflect(){ return detail::int_info(sizeof(Int) * CHAR_BIT, std::is_signed_v<Int>); }
+		};
+
+		template<typename Float>
+		struct reflect_helper<Float, std::enable_if_t<std::is_floating_point_v<Float>>>{
+			static num_info reflect(){ return detail::float_info(sizeof(Float) * CHAR_BIT); }
 		};
 
 		template<typename T>
@@ -143,7 +205,11 @@ namespace reflpp{
 		template<typename T>
 		REFLCPP_API extern type_info type_export();
 
+		template<auto Ptr>
+		REFLCPP_API extern function_info function_export();
+
 		using type_export_fn = type_info(*)();
+		using function_export_fn = function_info(*)();
 	}
 
 	class alignas(16) value{

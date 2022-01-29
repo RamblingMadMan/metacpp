@@ -16,6 +16,12 @@
 #include <filesystem>
 
 namespace pluginpp{
+	class function_info{
+		std::string_view name;
+		reflpp::type_info result_type;
+		std::vector<reflpp::type_info> param_types;
+	};
+
 	class library{
 		public:
 			virtual ~library() = default;
@@ -23,6 +29,7 @@ namespace pluginpp{
 			virtual const std::vector<std::string> &symbols() const noexcept = 0;
 
 			virtual const std::vector<reflpp::type_info> &exported_types() const noexcept = 0;
+			virtual const std::vector<reflpp::function_info> &exported_functions() const noexcept = 0;
 
 			virtual std::string demangle(const std::string &symbol_name) const noexcept = 0;
 

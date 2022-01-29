@@ -44,7 +44,7 @@ namespace {
 
 				m_symbols = info.symbols();
 
-				import_types();
+				import_entities();
 			}
 
 			explicit dynamic_library(const fs::path &path)
@@ -60,7 +60,7 @@ namespace {
 
 				m_symbols = info.symbols();
 
-				import_types();
+				import_entities();
 			}
 
 			dynamic_library(const dynamic_library&) = delete;
@@ -101,6 +101,10 @@ namespace {
 				return m_types;
 			}
 
+			const std::vector<reflpp::function_info> &exported_functions() const noexcept override{
+				return m_fns;
+			}
+
 			void *get_symbol(const std::string &name) const noexcept override{
 				if(!is_valid()) return nullptr;
 
@@ -113,14 +117,17 @@ namespace {
 			}
 
 		private:
-			void import_types(){
+			void import_entities(){
 				for(auto &&sym : m_symbols){
 					auto readable = demangle(sym);
 
-					constexpr std::string_view exportFnName = "reflpp::detail::fn_export";
+					constexpr std::string_view exportFnName = "reflpp::detail::function_export";
 					const auto exported_fn_res = readable.find(exportFnName);
 					if(exported_fn_res != std::string::npos){
-						// TODO: import function
+						auto ptr = get_symbol(sym);
+						auto f = reinterpret_cast<refl::detail::function_export_fn>(ptr);
+						assert(f);
+						auto fn = m_fns.emplace_back(f());
 						continue;
 					}
 
@@ -128,9 +135,9 @@ namespace {
 					const auto exported_type_res = readable.find(exportTypeName);
 					if(exported_type_res != std::string::npos){
 						auto ptr = get_symbol(sym);
-						auto f = reinterpret_cast<refl::type_info(*)()>(ptr);
+						auto f = reinterpret_cast<refl::detail::type_export_fn>(ptr);
 						assert(f);
-						m_types.emplace_back(f());
+						auto type = m_types.emplace_back(f());
 						continue;
 					}
 				}
@@ -147,6 +154,7 @@ namespace {
 			void *m_handle;
 			std::vector<std::string> m_symbols;
 			std::vector<refl::type_info> m_types;
+			std::vector<refl::function_info> m_fns;
 	};
 
 	class plugin_loader{

@@ -16,6 +16,11 @@ int main(int argc, char *argv[]){
 		for(auto type : types){
 			fmt::print("  Exports type '{}'\n", type->name());
 		}
+
+		auto &&fns = plug->exported_functions();
+		for(auto fn : fns){
+			fmt::print("  Exports fn '{}'\n", fn->name());
+		}
 	}
 
 	return 0;

@@ -35,12 +35,55 @@ std::string make_class_refl(const ast::class_info &cls){
 	);
 }
 
+std::string make_function_refl(const ast::function_info &fn){
+	std::string full_name = fn.name;
+	std::string param_names_arr, param_types_arr;
+
+	if(!fn.param_types.empty()){
+		for(std::size_t i = 0; i < fn.param_types.size(); i++){
+			auto &&param_name = fn.param_names[i];
+			auto &&param_type = fn.param_types[i];
+
+			param_names_arr += fmt::format(", \"{}\"", param_name);
+			param_types_arr += fmt::format(", reflpp::reflect<{}>()", param_type);
+		}
+
+		param_names_arr.erase(0, 2);
+		param_types_arr.erase(0, 2);
+	}
+
+	return fmt::format(
+		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<{0}>(){{\n"
+		"\t"	"struct function_info_impl: detail::function_info_helper{{\n"
+		"\t"	"\t"	"std::string_view name() const noexcept override{{ return \"{0}\"; }}"
+		"\t"	"\t"	"reflpp::type_info result_type() const noexcept override{{ return reflpp::reflect<{1}>(); }}"
+		"\t"	"\t"	"std::size_t num_params() const noexcept override{{ return {2}; }}"
+		"\t"	"\t"	"std::string_view param_name(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"constexpr std::string_view arr[] = {{ {3} }};\n"
+		"\t"	"\t"	"\t"	"return arr[idx];\n"
+		"\t"	"\t"	"}}"
+		"\t"	"\t"	"reflpp::type_info param_type(std::size_t idx) const noexcept override{{\n"
+		"\t"	"\t"	"\t"	"static const reflpp::type_info arr[] = {{ {4} }};\n"
+		"\t"	"\t"	"\t"	"return arr[idx];\n"
+		"\t"	"\t"	"}}"
+		"\t"	"}} static ret;\n"
+		"\t"	"return &ret;\n"
+		"}}\n",
+		full_name, fn.result_type, fn.param_types.size(), param_names_arr, param_types_arr
+	);
+}
+
 std::string make_namespace_refl(const ast::namespace_info &ns){
 	std::string output;
 
+	for(auto &&fns : ns.functions){
+		for(auto &&fn : fns.second){
+			output += fmt::format("{}\n", make_function_refl(*fn));
+		}
+	}
+
 	for(auto &&cls : ns.classes){
-		output += make_class_refl(*cls.second);
-		output += "\n";
+		output += fmt::format("{}\n", make_class_refl(*cls.second));
 	}
 
 	for(auto &&inner : ns.namespaces){

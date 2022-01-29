@@ -30,7 +30,6 @@ set_target_properties(
 	CXX_STANDARD_REQUIRED ON
 )
 
-target_include_directories(plugin-test INTERFACE include)
 target_include_directories(loader-test PRIVATE include)
 
 target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)
@@ -44,6 +43,7 @@ if(METACPP_IPO_SUPPORTED)
 	)
 endif()
 
+target_reflect(plugin-test)
 target_reflect(loader-test)
 target_reflect(ast-test)
 target_reflect(meta-example)

@@ -114,6 +114,14 @@ namespace astpp{
 		entity_kind kind() const noexcept override{ return entity_kind::type; }
 	};
 
+	struct function_info: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::function; }
+
+		std::string type;
+		std::string result_type;
+		std::vector<std::string> param_types, param_names;
+	};
+
 	struct class_member_info: entity_info{
 		entity_kind kind() const noexcept override{ return entity_kind::class_member; }
 
@@ -196,10 +204,6 @@ namespace astpp{
 		bool is_scoped;
 
 		std::vector<enum_value_info> values;
-	};
-
-	struct function_info: entity_info{
-		entity_kind kind() const noexcept override{ return entity_kind::function; }
 	};
 
 	struct type_alias_info: entity_info{

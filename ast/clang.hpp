@@ -222,7 +222,24 @@ namespace astpp::clang{
 			friend class cursor;
 	};
 
-	class cursor;
+	class type{
+		public:
+			type(CXType t) noexcept
+				: m_handle(t){}
+
+			type(const type&) noexcept = default;
+
+			type &operator=(const type&) noexcept = default;
+
+			operator CXType() const noexcept{ return m_handle; }
+
+			std::string spelling(){
+				return detail::convert_str(clang_getTypeSpelling(m_handle));
+			}
+
+		private:
+			CXType m_handle;
+	};
 
 	class cursor{
 		public:
@@ -237,9 +254,13 @@ namespace astpp::clang{
 
 			CXCursorKind kind() const noexcept{ return clang_getCursorKind(m_handle); }
 
-			CXType type() const noexcept{ return clang_getCursorType(m_handle); }
+			class type type() const noexcept{ return clang_getCursorType(m_handle); }
 
 			class tokens tokens() const noexcept{ return clang::tokens(m_handle); }
+
+			std::string display_name(){
+				return detail::convert_str(clang_getCursorDisplayName(m_handle));
+			}
 
 			std::string spelling(){
 				return detail::convert_str(clang_getCursorSpelling(m_handle));

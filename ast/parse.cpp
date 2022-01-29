@@ -48,7 +48,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c);
+	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns);
 
 	std::vector<std::string> parse_attrib_args(const fs::path &path, clang::token_iterator &it, clang::token_iterator end){
 		std::vector<std::string> ret;
@@ -205,7 +205,7 @@ namespace astpp::detail{
 		return parse_attribs(path, infos, toks_begin, toks.end());
 	}
 
-	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_Constructor){
 			return std::nullopt;
 		}
@@ -254,7 +254,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_destructor_info> parse_class_dtor(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<class_destructor_info> parse_class_dtor(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_Destructor){
 			return std::nullopt;
 		}
@@ -264,7 +264,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_FieldDecl){
 			return std::nullopt;
 		}
@@ -277,12 +277,12 @@ namespace astpp::detail{
 		class_member_info ret;
 
 		ret.name = c.spelling();
-		ret.type = clang::detail::convert_str(clang_getTypeSpelling(clang_getCursorType(c)));
+		ret.type = c.type().spelling();
 
 		return ret;
 	}
 
-	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_CXXMethod){
 			return std::nullopt;
 		}
@@ -302,7 +302,7 @@ namespace astpp::detail{
 		ret.is_pure_virtual = clang_CXXMethod_isPureVirtual(c);
 		ret.is_defaulted = clang_CXXMethod_isDefaulted(c);
 
-		auto fn_type = clang_getCursorType(c);
+		auto fn_type = c.type();
 
 		ret.is_noexcept =
 			clang_getExceptionSpecificationType(fn_type) == CXCursor_ExceptionSpecificationKind_BasicNoexcept;
@@ -322,9 +322,9 @@ namespace astpp::detail{
 			ret.param_types.reserve(num_params);
 
 			for(int i = 0; i < num_params; i++){
-				auto param_cursor = clang_Cursor_getArgument(c, i);
-				auto param_name = clang::detail::convert_str(clang_getCursorSpelling(param_cursor));
-				auto param_type = clang::detail::convert_str(clang_getTypeSpelling(clang_getCursorType(param_cursor)));
+				clang::cursor param_cursor = clang_Cursor_getArgument(c, i);
+				auto param_name = param_cursor.spelling();
+				auto param_type = param_cursor.type().spelling();
 
 				ret.param_names.emplace_back(std::move(param_name));
 				ret.param_types.emplace_back(std::move(param_type));
@@ -334,7 +334,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		const bool is_template = c.kind() == CXCursor_ClassTemplate;
 
 		if(!is_template && c.kind() != CXCursor_ClassDecl){
@@ -351,6 +351,7 @@ namespace astpp::detail{
 			c = def_cursor;
 		}
 
+		auto class_type = c.type();
 		auto class_name = c.spelling();
 
 		class_info ret;
@@ -363,7 +364,7 @@ namespace astpp::detail{
 
 		ret.attributes = parse_attribs(path, infos, toks_begin, toks.end());
 
-		ret.name = c.spelling();
+		ret.name = ns + class_name;
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
 		ret.is_template = is_template;
 
@@ -428,23 +429,23 @@ namespace astpp::detail{
 				ret.bases.emplace_back(std::move(base));
 				return;
 			}
-			else if(auto class_decl = detail::parse_class_decl(path, infos, inner); class_decl){
+			else if(auto class_decl = detail::parse_class_decl(path, infos, inner, ns); class_decl){
 				auto ptr = store_info(*class_decl);
 				ret.classes[ptr->name] = ptr;
 			}
-			else if(auto ctor = detail::parse_class_ctor(path, infos, inner); ctor){
+			else if(auto ctor = detail::parse_class_ctor(path, infos, inner, ns); ctor){
 				auto ptr = store_info(*ctor);
 				ret.ctors.emplace_back(ptr);
 			}
-			else if(auto dtor = detail::parse_class_dtor(path, infos, inner); dtor){
+			else if(auto dtor = detail::parse_class_dtor(path, infos, inner, ns); dtor){
 				auto ptr = store_info(*dtor);
 				ret.dtor = ptr;
 			}
-			else if(auto method = detail::parse_class_method(path, infos, inner); method){
+			else if(auto method = detail::parse_class_method(path, infos, inner, ns); method){
 				auto ptr = store_info(*method);
 				ret.methods[ptr->name].emplace_back(ptr);
 			}
-			else if(auto member = detail::parse_class_member(path, infos, inner); member){
+			else if(auto member = detail::parse_class_member(path, infos, inner, ns); member){
 				ret.members.emplace_back(std::move(*member));
 			}
 
@@ -456,14 +457,14 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<enum_info> parse_enum_decl(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<enum_info> parse_enum_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_EnumDecl){
 			return std::nullopt;
 		}
 
 		enum_info ret;
 
-		ret.name = c.spelling();
+		ret.name = ns + c.spelling();
 		ret.is_scoped = clang_EnumDecl_isScoped(c);
 
 		c.visit_children([&](clang::cursor value_c, clang::cursor){
@@ -480,7 +481,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<function_info> parse_function_decl(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<function_info> parse_function_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_FunctionDecl){
 			return std::nullopt;
 		}
@@ -492,10 +493,10 @@ namespace astpp::detail{
 
 		function_info ret;
 
-		ret.name = c.spelling();
+		ret.name = ns + c.spelling();
 
 		auto fn_type = c.type();
-		auto fn_type_str = clang::detail::convert_str(clang_getTypeSpelling(fn_type));
+		auto fn_type_str = fn_type.spelling();
 
 		{
 			auto result_type = clang_getResultType(fn_type);
@@ -514,7 +515,7 @@ namespace astpp::detail{
 				auto arg_type = arg_cursor.type();
 
 				auto arg_name = arg_cursor.spelling();
-				auto arg_type_name = clang::detail::convert_str(clang_getTypeSpelling(arg_type));
+				auto arg_type_name = arg_type.spelling();
 
 				ret.param_names.emplace_back(std::move(arg_name));
 				ret.param_types.emplace_back(std::move(arg_type_name));
@@ -524,8 +525,8 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	entity_info *parse_namespace_inner(const fs::path &path, info_map &infos, namespace_info &ns, clang::cursor c){
-		auto res = try_parse(path, infos, c);
+	entity_info *parse_namespace_inner(const fs::path &path, info_map &infos, namespace_info &ns, clang::cursor c, const std::string &ns_str){
+		auto res = try_parse(path, infos, c, ns_str);
 		if(!res) return nullptr;
 
 		entity_info *ret = nullptr;
@@ -571,7 +572,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<type_alias_info> parse_type_alias(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<type_alias_info> parse_type_alias(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_TypeAliasDecl && c.kind() != CXCursor_TypedefDecl){
 			return std::nullopt;
 		}
@@ -583,7 +584,7 @@ namespace astpp::detail{
 
 		type_alias_info ret;
 
-		ret.name = c.spelling();
+		ret.name = ns + c.spelling();
 
 		auto type = clang_getTypedefDeclUnderlyingType(c);
 
@@ -592,7 +593,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<namespace_info> parse_namespace(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<namespace_info> parse_namespace(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(c.kind() != CXCursor_Namespace){
 			return std::nullopt;
 		}
@@ -601,48 +602,35 @@ namespace astpp::detail{
 
 		ret.name = c.spelling();
 
-		static const std::set<std::string> ignored_namespaces = {
-			"std",
-			"__gnu_debug",
-			"__gnu_cxx",
-			"__cxx11",
-			"__cxxabiv1",
-			"__ops"
-		};
-
-		if(ignored_namespaces.find(ret.name) != ignored_namespaces.end()){
-			return std::nullopt;
-		}
-
 		c.visit_children(
 			[&](clang::cursor child, clang::cursor){
-				parse_namespace_inner(path, infos, ret, child);
+				parse_namespace_inner(path, infos, ret, child, ns + c.spelling() + "::");
 			}
 		);
 
 		return ret;
 	}
 
-	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c){
+	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
 		if(!clang_Location_isFromMainFile(clang_getCursorLocation(c))){
 			return std::nullopt;
 		}
-		else if(auto fn_decl = detail::parse_function_decl(path, infos, c); fn_decl){
+		else if(auto fn_decl = detail::parse_function_decl(path, infos, c, ns); fn_decl){
 			return std::make_optional<entity>(std::move(*fn_decl));
 		}
-		else if(auto class_decl = detail::parse_class_decl(path, infos, c); class_decl){
+		else if(auto class_decl = detail::parse_class_decl(path, infos, c, ns); class_decl){
 			return std::make_optional<entity>(std::move(*class_decl));
 		}
-		else if(auto enum_decl = detail::parse_enum_decl(path, infos, c); enum_decl){
+		else if(auto enum_decl = detail::parse_enum_decl(path, infos, c, ns); enum_decl){
 			return std::make_optional<entity>(std::move(*enum_decl));
 		}
-		else if(auto fn_decl = detail::parse_function_decl(path, infos, c); fn_decl){
+		else if(auto fn_decl = detail::parse_function_decl(path, infos, c, ns); fn_decl){
 			return std::make_optional<entity>(std::move(*fn_decl));
 		}
-		else if(auto ns = detail::parse_namespace(path, infos, c); ns){
-			return std::make_optional<entity>(std::move(*ns));
+		else if(auto ns_decl = detail::parse_namespace(path, infos, c, ns); ns_decl){
+			return std::make_optional<entity>(std::move(*ns_decl));
 		}
-		else if(auto alias = detail::parse_type_alias(path, infos, c); alias){
+		else if(auto alias = detail::parse_type_alias(path, infos, c, ns); alias){
 			return std::make_optional<entity>(std::move(*alias));
 		}
 
@@ -753,7 +741,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 			return; // skip using directives
 		}
 
-		auto entity = ast::detail::parse_namespace_inner(path, ret, ret.global, cursor);
+		auto entity = ast::detail::parse_namespace_inner(path, ret, ret.global, cursor, "::");
 		if(!entity){
 			//ast::detail::print_parse_warning(path, "Unrecognized cursor '{}' of kind '{}'", cursor.spelling(), cursor.kind_spelling());
 		}

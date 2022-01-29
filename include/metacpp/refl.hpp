@@ -118,6 +118,10 @@ namespace reflpp{
 			virtual type_info refered() const noexcept = 0;
 		};
 
+		struct ptr_info_helper: type_info_helper{
+			virtual type_info pointed() const noexcept = 0;
+		};
+
 		type_info void_info() noexcept;
 		int_info int_info(std::size_t bits, bool is_signed) noexcept;
 		num_info float_info(std::size_t bits) noexcept;
@@ -217,6 +221,21 @@ namespace reflpp{
 					std::size_t alignment() const noexcept override{ return alignof(void*); }
 					void destroy(void *p) const noexcept override{ }
 					type_info refered() const noexcept override{ static auto ret = reflpp::reflect<std::remove_reference_t<T>>(); return ret; }
+				} static ret;
+				return &ret;
+			}
+		};
+
+		template<typename T>
+		struct reflect_helper<T, std::enable_if_t<std::is_pointer_v<T>>>{
+			static type_info reflect(){
+				struct ptr_info_impl: ptr_info_helper{
+					ptr_info_impl(){ register_type(this); }
+					std::string_view name() const noexcept override{ return metapp::type_name<T>; }
+					std::size_t size() const noexcept override{ return sizeof(T); }
+					std::size_t alignment() const noexcept override{ return alignof(T); }
+					void destroy(void *p) const noexcept override{ }
+					type_info pointed() const noexcept override{ static auto ret = reflpp::reflect<std::remove_pointer_t<T>>(); return ret; }
 				} static ret;
 				return &ret;
 			}

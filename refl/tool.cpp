@@ -105,6 +105,12 @@ std::string make_function_refl(const ast::function_info &fn){
 	std::string full_name = fn.name;
 	std::string param_names_arr, param_types_arr;
 
+	constexpr std::string_view operator_prefix = "::operator";
+
+	if(std::string_view(full_name).substr(0, operator_prefix.size()) == operator_prefix){
+		return "";
+	}
+
 	std::string_view param_name_result = "\"\"", param_type_result = "nullptr";
 
 	if(!fn.param_types.empty()){
@@ -124,7 +130,7 @@ std::string make_function_refl(const ast::function_info &fn){
 	}
 
 	return fmt::format(
-		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<{0}>(){{\n"
+		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<({0})>(){{\n"
 		"\t"	"struct function_info_impl: detail::function_info_helper{{\n"
 		"\t"	"\t"	"std::string_view name() const noexcept override{{ return \"{0}\"; }}\n"
 		"\t"	"\t"	"reflpp::type_info result_type() const noexcept override{{ return reflpp::reflect<{1}>(); }}\n"

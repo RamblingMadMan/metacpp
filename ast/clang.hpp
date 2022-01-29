@@ -395,9 +395,9 @@ namespace astpp::clang{
 			translation_unit(CXIndex index, const fs::path &path, const std::vector<std::string> &options = {})
 				: handle(nullptr)
 			{
-				const char *option_cstrs[64];
+				const char *option_cstrs[128];
 
-				if(options.size() > 64){
+				if(options.size() > 128){
 					throw std::runtime_error("internal error: buffer size too small, too many compile options");
 				}
 

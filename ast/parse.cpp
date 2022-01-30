@@ -334,7 +334,54 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::vector<std::string> parse_specialization_args(const fs::path &path, clang::token_iterator begin, clang::token_iterator end){
+		std::vector<std::string> ret;
+
+		while(begin != end && (begin->str() == "::" || begin->kind() == CXToken_Identifier)){
+			++begin;
+		}
+
+		if(begin == end) return ret;
+
+		if(begin->str() != "<"){
+			print_parse_error(path, "Internal: expected '<' in specialization tokens");
+			return ret;
+		}
+
+		++begin; // skip opening angle bracket
+
+		auto it = begin;
+
+		int bracket_depth = 0;
+
+		std::string arg_str;
+
+		while(it != end){
+			if(it->str() == "," && bracket_depth == 0){
+				if(!arg_str.empty()){
+					ret.emplace_back(std::move(arg_str));
+					arg_str = "";
+				}
+				++it;
+				continue;
+			}
+			else if(it->str() == "<"){
+				++bracket_depth;
+			}
+			else if(it->str() == ">"){
+				if(--bracket_depth == 0){
+					break;
+				}
+			}
+
+			arg_str += it->str();
+			++it;
+		}
+
+		return ret;
+	}
+
+	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns, std::vector<std::string> tmpl_args = {}){
 		const bool is_template = c.kind() == CXCursor_ClassTemplate;
 
 		if(!is_template && c.kind() != CXCursor_ClassDecl){
@@ -355,17 +402,20 @@ namespace astpp::detail{
 
 		class_info ret;
 
-		auto toks = c.tokens();
+		{
+			auto toks = c.tokens();
+			auto toks_begin = toks.begin();
 
-		auto toks_begin = toks.begin();
+			++toks_begin; // skip class/struct keyword
 
-		++toks_begin; // skip class/struct keyword
-
-		ret.attributes = parse_attribs(path, infos, toks_begin, toks.end());
+			ret.attributes = parse_attribs(path, infos, toks_begin, toks.end());
+		}
 
 		ret.name = ns + class_name;
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
 		ret.is_template = is_template;
+
+		std::unordered_map<std::string, std::string> tmpl_arg_map;
 
 		if(clang_Cursor_isNull(def_cursor)){
 			return ret;
@@ -374,6 +424,12 @@ namespace astpp::detail{
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
 		bool in_template = is_template;
+		bool has_tmpl_args = !tmpl_args.empty();
+
+		if(has_tmpl_args){
+			ret.template_args = std::move(tmpl_args);
+		}
+
 
 		c.visit_children([&](clang::cursor inner, clang::cursor){
 			// TODO: check 'ptr' in each branch
@@ -406,8 +462,12 @@ namespace astpp::detail{
 						}
 
 						param.name = inner.spelling();
-						ret.template_args.emplace_back(param.name);
+						if(!has_tmpl_args) ret.template_args.emplace_back(param.name);
+
+						tmpl_arg_map[param.name] = ret.template_args[ret.template_params.size()];
+
 						ret.template_params.emplace_back(std::move(param));
+
 						return;
 					}
 
@@ -458,21 +518,17 @@ namespace astpp::detail{
 					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, "");
 					if(base_decl_opt){
 						auto &&base_decl = *base_decl_opt;
-						// TODO: reflect base class specialization
 
-						auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+						base_decl.skip_meta = true;
 
-						auto num_args_opt = base_decl_c.num_args();
-						if(num_args_opt){
-							base_decl.template_params.clear();
-							base_decl.template_args.clear();
+						//base_decl.template_params.clear();
 
-							auto &&num_args = *num_args_opt;
-							for(std::size_t i = 0; i < num_args; i++){
-								auto arg_opt = base_decl_c.arg(i);
-								base_decl.template_args.emplace_back(arg_opt->spelling());
-							}
-						}
+						//auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+
+						//for(int i = 0; i < num_tmpl_args; i++){
+						//	clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
+						//	base_decl.template_args.emplace_back(arg_type.spelling());
+						//}
 
 						auto base_cls = store_info(infos, std::move(base_decl));
 

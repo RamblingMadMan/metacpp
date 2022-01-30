@@ -235,6 +235,8 @@ namespace astpp::clang{
 
 			operator CXType() const noexcept{ return m_handle; }
 
+			CXTypeKind kind() const noexcept{ return m_handle.kind; }
+
 			std::string spelling(){
 				return detail::convert_str(clang_getTypeSpelling(m_handle));
 			}

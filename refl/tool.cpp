@@ -51,20 +51,18 @@ std::string make_method_refl(const ast::class_method_info &method, std::size_t i
 }
 
 std::string make_class_refl(const ast::class_info &cls){
-	if(cls.is_template) return "";
+	if(!cls.template_params.empty()) return "";
 
 	std::string full_name = cls.name;
 
-	if(cls.is_template){
+	if(!cls.template_args.empty()){
 		std::string tmpl_args;
 
-		if(!cls.template_args.empty()){
-			for(auto &&tmpl_arg : cls.template_args){
-				tmpl_args += fmt::format(", {}", tmpl_arg);
-			}
-
-			tmpl_args.erase(0, 2);
+		for(auto &&tmpl_arg : cls.template_args){
+			tmpl_args += fmt::format(", {}", tmpl_arg);
 		}
+
+		tmpl_args.erase(0, 2);
 
 		full_name += fmt::format("<{}>", tmpl_args);
 	}

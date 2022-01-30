@@ -108,6 +108,7 @@ namespace astpp{
 
 		std::string name;
 		std::vector<attribute> attributes;
+		bool skip_meta = false;
 	};
 
 	struct type_info: entity_info{

@@ -51,7 +51,7 @@ std::string make_method_refl(const ast::class_method_info &method, std::size_t i
 }
 
 std::string make_class_refl(const ast::class_info &cls){
-	if(!cls.template_params.empty()) return "";
+	if(cls.is_template) return "";
 
 	std::string full_name = cls.name;
 

@@ -351,7 +351,6 @@ namespace astpp::detail{
 			c = def_cursor;
 		}
 
-		auto class_type = c.type();
 		auto class_name = c.spelling();
 
 		class_info ret;
@@ -383,10 +382,41 @@ namespace astpp::detail{
 				switch(inner.kind()){
 					case CXCursor_TemplateTypeParameter:{
 						template_param_info param;
+
+						auto arg_kind = clang_Cursor_getTemplateArgumentKind(inner, ret.template_params.size());
+
+						if(arg_kind != CXTemplateArgumentKind_Invalid){
+							switch(arg_kind){
+								case CXTemplateArgumentKind_Pack:{
+									param.declarator = "typename ...";
+									param.is_variadic = true;
+									break;
+								}
+
+								default:{
+									param.declarator = "typename";
+									param.is_variadic = false;
+									break;
+								}
+							}
+						}
+						else{
+							param.declarator = "typename";
+							param.is_variadic = false;
+						}
+
 						param.name = inner.spelling();
-						param.declarator = "typename";
+						ret.template_args.emplace_back(param.name);
 						ret.template_params.emplace_back(std::move(param));
 						return;
+					}
+
+					case CXCursor_TemplateTemplateParameter:{
+						template_param_info param;
+
+						print_parse_error(path, "template template parameter '{}' for '{}'; not currently supported", inner.spelling(), ret.name);
+
+						break;
 					}
 
 					default:{
@@ -422,7 +452,7 @@ namespace astpp::detail{
 				clang::cursor base_decl_c = clang_getTypeDeclaration(base_type);
 
 				if(base_decl_c.is_null()){
-					fmt::print(stderr, "Failed to get base class declaration for '{}'", inner.spelling());
+					print_parse_error(path, "Failed to get base class declaration for '{}'", inner.spelling());
 				}
 				else if(base_decl_c.kind() == CXCursor_ClassTemplate){
 					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, "");
@@ -430,9 +460,19 @@ namespace astpp::detail{
 						auto &&base_decl = *base_decl_opt;
 						// TODO: reflect base class specialization
 
-						base_decl.is_template = false;
-						base_decl.template_params.clear();
-						base_decl.name = inner.spelling();
+						auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+
+						auto num_args_opt = base_decl_c.num_args();
+						if(num_args_opt){
+							base_decl.template_params.clear();
+							base_decl.template_args.clear();
+
+							auto &&num_args = *num_args_opt;
+							for(std::size_t i = 0; i < num_args; i++){
+								auto arg_opt = base_decl_c.arg(i);
+								base_decl.template_args.emplace_back(arg_opt->spelling());
+							}
+						}
 
 						auto base_cls = store_info(infos, std::move(base_decl));
 

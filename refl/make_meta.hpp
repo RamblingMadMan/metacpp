@@ -196,7 +196,7 @@ std::string_view access_to_str(ast::access_kind access){
 std::string make_class_meta(const ast::class_info &cls){
 	std::string
 		output,
-		tmpl_param_names, tmpl_params,
+		tmpl_args, tmpl_param_names, tmpl_params,
 		attribs_member_str,
 		bases_member_str,
 		ctors_member_str,
@@ -210,12 +210,21 @@ std::string make_class_meta(const ast::class_info &cls){
 		tmpl_params += fmt::format(", {} {}", tmpl_param.declarator, tmpl_param.name);
 	}
 
-	std::string full_name = cls.name;
+	for(auto &&tmpl_arg : cls.template_args){
+		tmpl_args += fmt::format(", {}", tmpl_arg);
+	}
+
+	std::string full_name = "::" + cls.name;
 
 	if(!tmpl_param_names.empty()){
 		tmpl_param_names.erase(0, 2);
 		tmpl_params.erase(0, 2);
-		full_name += fmt::format("<{}>", tmpl_param_names);
+		//full_name += fmt::format("<{}>", tmpl_param_names);
+	}
+
+	if(!tmpl_args.empty()){
+		tmpl_args.erase(0, 2);
+		full_name += fmt::format("<{}>", tmpl_args);
 	}
 
 	std::size_t base_idx = 0;

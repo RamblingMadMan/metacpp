@@ -62,16 +62,18 @@ struct TestTemplateClass{
 
 		const T &value() const noexcept{ return m_value; }
 
-		virtual void overridable() = 0;
-
 	private:
 		T m_value;
 };
 
-class TestDerivedTemplate: public TestTemplateClass<std::string_view>{
-	public:
-		void overridable() override{}
-};
+namespace detail{
+	template<typename ... Ts>
+	class TestDerivedTemplateHelper: public TestTemplateClass<Ts>...{
+
+	};
+}
+
+class TestDerivedTemplate: public TestTemplateClass<std::string_view>{};
 
 class [[test::attrib]] TestClassAttrib{
 	public:

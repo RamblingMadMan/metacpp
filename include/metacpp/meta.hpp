@@ -184,6 +184,14 @@ namespace metapp{
 		struct append_helper<types<Ts...>, U>{
 			using type = types<Ts..., U>;
 		};
+
+		template<typename T>
+		struct template_args_helper;
+
+		template<template<typename...> typename Tmpl, typename ... Ts>
+		struct template_args_helper<Tmpl<Ts...>>{
+			using type = types<Ts...>;
+		};
 	}
 
 	template<typename L, typename T>
@@ -191,6 +199,9 @@ namespace metapp{
 
 	template<typename ... Ls>
 	using join = typename detail::join_helper<Ls...>::type;
+
+	template<typename T>
+	using template_args = typename detail::template_args_helper<T>::type;
 
 	namespace detail{
 		template<typename Ts>

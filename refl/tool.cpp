@@ -55,6 +55,20 @@ std::string make_class_refl(const ast::class_info &cls){
 
 	std::string full_name = cls.name;
 
+	if(cls.is_template){
+		std::string tmpl_args;
+
+		if(!cls.template_args.empty()){
+			for(auto &&tmpl_arg : cls.template_args){
+				tmpl_args += fmt::format(", {}", tmpl_arg);
+			}
+
+			tmpl_args.erase(0, 2);
+		}
+
+		full_name += fmt::format("<{}>", tmpl_args);
+	}
+
 	std::string methods_output;
 	std::string bases_arr, methods_arr;
 

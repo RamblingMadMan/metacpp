@@ -168,6 +168,7 @@ namespace astpp{
 
 		std::string declarator;
 		std::string default_value;
+		bool is_variadic;
 	};
 
 	struct class_base_info: entity_info{
@@ -188,6 +189,7 @@ namespace astpp{
 		std::unordered_map<std::string, const class_info*> classes;
 		std::vector<const class_constructor_info*> ctors;
 		std::vector<template_param_info> template_params;
+		std::vector<std::string> template_args;
 		const class_destructor_info *dtor = nullptr;
 	};
 

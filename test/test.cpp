@@ -59,13 +59,13 @@ int main(int argc, char *argv[]){
 	auto compile_info = ast::compile_info(build_dir);
 	auto info = ast::parse(header_path, compile_info);
 
-	auto test_type = refl::reflect(meta::type_name<TestClassNS>);
+	auto test_type = refl::reflect(meta::type_name<test::TestClassNS>);
 
 	if(!test_type){
-		exit_with_error("Failed to reflect '{}'", meta::type_name<TestClassNS>);
+		exit_with_error("Failed to reflect '{}'", meta::type_name<test::TestClassNS>);
 	}
 
-	using test_info = meta::class_info<TestClassNS>;
+	using test_info = meta::class_info<test::TestClassNS>;
 	using test_attribs = meta::attributes<TestClass2Attribs>;
 
 	auto test_cls = dynamic_cast<refl::class_info>(test_type);
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]){
 	assert(test_info::methods::size == test_cls->num_methods());
 
 	using attrib_results = meta::query_attribs<TestClass2Attribs, "foo", "bar">;
-	using method_results = meta::query_methods<TestClassNS, "test_member", void(std::string_view)>;
+	using method_results = meta::query_methods<test::TestClassNS, "test_member", void(std::string_view)>;
 
 	static_assert(method_results::size > 0);
 	static_assert(test_attribs::size == 2);

@@ -48,7 +48,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns);
+	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns);
 
 	std::vector<std::string> parse_attrib_args(const fs::path &path, clang::token_iterator &it, clang::token_iterator end){
 		std::vector<std::string> ret;
@@ -205,7 +205,7 @@ namespace astpp::detail{
 		return parse_attribs(path, infos, toks_begin, toks.end());
 	}
 
-	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_Constructor){
 			return std::nullopt;
 		}
@@ -216,6 +216,8 @@ namespace astpp::detail{
 		}
 
 		class_constructor_info ret;
+
+		ret.ns = ns;
 
 		if(clang_CXXConstructor_isMoveConstructor(c)){
 			ret.constructor_kind = constructor_kind::move;
@@ -254,17 +256,19 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_destructor_info> parse_class_dtor(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<class_destructor_info> parse_class_dtor(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_Destructor){
 			return std::nullopt;
 		}
 
 		class_destructor_info ret;
 
+		ret.ns = ns;
+
 		return ret;
 	}
 
-	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_FieldDecl){
 			return std::nullopt;
 		}
@@ -276,13 +280,14 @@ namespace astpp::detail{
 
 		class_member_info ret;
 
+		ret.ns = ns;
 		ret.name = c.spelling();
 		ret.type = c.type().spelling();
 
 		return ret;
 	}
 
-	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_CXXMethod){
 			return std::nullopt;
 		}
@@ -294,8 +299,8 @@ namespace astpp::detail{
 
 		class_method_info ret;
 
+		ret.ns = ns;
 		ret.name = c.spelling();
-
 		ret.is_static = clang_CXXMethod_isStatic(c);
 		ret.is_const = clang_CXXMethod_isConst(c);
 		ret.is_virtual = clang_CXXMethod_isVirtual(c);
@@ -381,7 +386,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns, std::vector<std::string> tmpl_args = {}){
+	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		const bool is_template = c.kind() == CXCursor_ClassTemplate;
 
 		if(!is_template && c.kind() != CXCursor_ClassDecl){
@@ -399,6 +404,7 @@ namespace astpp::detail{
 		}
 
 		auto class_name = c.spelling();
+		auto class_type = c.type().spelling();
 
 		class_info ret;
 
@@ -411,7 +417,8 @@ namespace astpp::detail{
 			ret.attributes = parse_attribs(path, infos, toks_begin, toks.end());
 		}
 
-		ret.name = ns + class_name;
+		ret.ns = ns;
+		ret.name = ns->name + "::" + class_name;
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
 		ret.is_template = is_template;
 
@@ -424,11 +431,6 @@ namespace astpp::detail{
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
 		bool in_template = is_template;
-		bool has_tmpl_args = !tmpl_args.empty();
-
-		if(has_tmpl_args){
-			ret.template_args = std::move(tmpl_args);
-		}
 
 		c.visit_children([&](clang::cursor inner, clang::cursor){
 			if(in_template){
@@ -459,7 +461,7 @@ namespace astpp::detail{
 						}
 
 						param.name = inner.spelling();
-						if(!has_tmpl_args) ret.template_args.emplace_back(param.name);
+						ret.template_args.emplace_back(param.name);
 
 						tmpl_arg_map[param.name] = ret.template_args[ret.template_params.size()];
 
@@ -512,7 +514,7 @@ namespace astpp::detail{
 					print_parse_error(path, "Failed to get base class declaration for '{}'", inner.spelling());
 				}
 				else if(base_decl_c.kind() == CXCursor_ClassTemplate){
-					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, "");
+					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, &infos.global);
 					if(base_decl_opt){
 						auto &&base_decl = *base_decl_opt;
 
@@ -532,14 +534,13 @@ namespace astpp::detail{
 						base.name += ">";
 						*/
 
-						auto base_cls = store_info(infos, std::move(base_decl));
+						//auto base_cls = store_info(infos, std::move(base_decl));
 
-						infos.global.classes[base_cls->name] = base_cls;
+						//infos.global.classes[base_cls->name] = base_cls;
 					}
 				}
 
 				ret.bases.emplace_back(std::move(base));
-				return;
 			}
 			else if(auto class_decl = detail::parse_class_decl(path, infos, inner, ns); class_decl){
 				auto ptr = store_info(infos, std::move(*class_decl));
@@ -569,14 +570,14 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<enum_info> parse_enum_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<enum_info> parse_enum_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_EnumDecl){
 			return std::nullopt;
 		}
 
 		enum_info ret;
 
-		ret.name = ns + c.spelling();
+		ret.name = ns->name + "::" + c.spelling();
 		ret.is_scoped = clang_EnumDecl_isScoped(c);
 
 		c.visit_children([&](clang::cursor value_c, clang::cursor){
@@ -593,7 +594,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<function_info> parse_function_decl(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<function_info> parse_function_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_FunctionDecl){
 			return std::nullopt;
 		}
@@ -605,7 +606,7 @@ namespace astpp::detail{
 
 		function_info ret;
 
-		ret.name = ns + c.spelling();
+		ret.name = ns->name + "::" + c.spelling();
 
 		auto fn_type = c.type();
 		auto fn_type_str = fn_type.spelling();
@@ -637,45 +638,39 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	entity_info *parse_namespace_inner(const fs::path &path, info_map &infos, namespace_info &ns, clang::cursor c, const std::string &ns_str){
-		auto res = try_parse(path, infos, c, ns_str);
+	entity_info *parse_namespace_inner(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
+		auto res = try_parse(path, infos, c, ns);
 		if(!res) return nullptr;
 
 		entity_info *ret = nullptr;
 
-		auto store_info = [&infos](auto &info){
-			auto ptr = std::make_unique<std::remove_reference_t<decltype(info)>>(std::move(info));
-			auto ret = ptr.get();
-			infos.storage.emplace_back(std::move(ptr));
-			return ret;
-		};
-
 		std::visit(
 			meta::overload(
 				[&](function_info &fn_info){
-					auto ptr = store_info(fn_info);
+					auto ptr = store_info(infos, std::move(fn_info));
 					ret = ptr;
-					ns.functions[ptr->name].emplace_back(ptr);
+					ns->functions[ptr->name].emplace_back(ptr);
 				},
 				[&](class_info &cls){
-					auto ptr = store_info(cls);
+					auto ptr = store_info(infos, std::move(cls));
 					ret = ptr;
-					ns.classes[ptr->name] = ptr;
+					ns->classes[ptr->name] = ptr;
 				},
 				[&](enum_info &enm){
-					auto ptr = store_info(enm);
+					auto ptr = store_info(infos, std::move(enm));
 					ret = ptr;
-					ns.enums[ptr->name] = ptr;
+					ns->enums[ptr->name] = ptr;
 				},
 				[&](namespace_info &child_ns){
-					auto ptr = store_info(child_ns);
+					auto ptr = store_info(infos, std::move(child_ns));
 					ret = ptr;
-					ns.namespaces[ptr->name] = ptr;
+					infos.namespaces[ptr->name] = ptr;
+					ns->namespaces[ptr->name] = ptr;
 				},
 				[&](type_alias_info &alias){
-					auto ptr = store_info(alias);
+					auto ptr = store_info(infos, std::move(alias));
 					ret = ptr;
-					ns.aliases[ptr->name] = ptr;
+					ns->aliases[ptr->name] = ptr;
 				}
 			),
 			*res
@@ -684,7 +679,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<type_alias_info> parse_type_alias(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<type_alias_info> parse_type_alias(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_TypeAliasDecl && c.kind() != CXCursor_TypedefDecl){
 			return std::nullopt;
 		}
@@ -696,7 +691,7 @@ namespace astpp::detail{
 
 		type_alias_info ret;
 
-		ret.name = ns + c.spelling();
+		ret.name = ns->name + "::" + c.spelling();
 
 		auto type = clang_getTypedefDeclUnderlyingType(c);
 
@@ -705,25 +700,42 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<namespace_info> parse_namespace(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<namespace_info> parse_namespace(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(c.kind() != CXCursor_Namespace){
 			return std::nullopt;
 		}
 
-		namespace_info ret;
+		auto inner_name = ns->name + "::" + c.spelling();
+		auto inner_res = infos.namespaces.find(inner_name);
 
-		ret.name = c.spelling();
+		if(inner_res != infos.namespaces.end()){
+			auto inner = inner_res->second;
 
-		c.visit_children(
-			[&](clang::cursor child, clang::cursor){
-				parse_namespace_inner(path, infos, ret, child, ns + c.spelling() + "::");
-			}
-		);
+			c.visit_children(
+				[&](clang::cursor child, clang::cursor){
+					parse_namespace_inner(path, infos, child, inner);
+				}
+			);
 
-		return ret;
+			return std::nullopt;
+		}
+		else{
+			namespace_info ret;
+
+			ret.ns = ns;
+			ret.name = std::move(inner_name);
+
+			c.visit_children(
+				[&](clang::cursor child, clang::cursor){
+					parse_namespace_inner(path, infos, child, &ret);
+				}
+			);
+
+			return ret;
+		}
 	}
 
-	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, const std::string &ns){
+	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		if(!clang_Location_isFromMainFile(clang_getCursorLocation(c))){
 			return std::nullopt;
 		}
@@ -840,6 +852,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 	}
 
 	info_map ret;
+	ret.global.ns = nullptr;
 
 	std::function<void(clang::cursor, clang::cursor)> visitor = [&](clang::cursor cursor, clang::cursor parent){
 		if(cursor.kind() == CXCursor_InclusionDirective){
@@ -853,7 +866,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 			return; // skip using directives
 		}
 
-		auto entity = ast::detail::parse_namespace_inner(path, ret, ret.global, cursor, "");
+		auto entity = ast::detail::parse_namespace_inner(path, ret, cursor, &ret.global);
 		if(!entity){
 			//ast::detail::print_parse_warning(path, "Unrecognized cursor '{}' of kind '{}'", cursor.spelling(), cursor.kind_spelling());
 		}

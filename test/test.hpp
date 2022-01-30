@@ -73,7 +73,9 @@ namespace detail{
 	};
 }
 
-class TestDerivedTemplate: public TestTemplateClass<std::string_view>{};
+namespace test{
+	class TestDerivedTemplate: public TestTemplateClass<std::string_view>{};
+}
 
 class [[test::attrib]] TestClassAttrib{
 	public:

@@ -82,6 +82,8 @@ namespace astpp{
 		public_, protected_, private_
 	};
 
+	class namespace_info;
+
 	struct entity_info{
 		entity_info() = default;
 
@@ -108,6 +110,7 @@ namespace astpp{
 
 		std::string name;
 		std::vector<attribute> attributes;
+		namespace_info *ns;
 	};
 
 	struct type_info: entity_info{
@@ -215,6 +218,13 @@ namespace astpp{
 	};
 
 	struct namespace_info: entity_info{
+		namespace_info() = default;
+
+		namespace_info(namespace_info&&) noexcept = default;
+		namespace_info(const namespace_info&) = delete;
+
+		namespace_info &operator=(namespace_info&&) noexcept = default;
+
 		entity_kind kind() const noexcept override{ return entity_kind::namespace_; }
 
 		std::unordered_map<std::string, class_info*> classes;
@@ -228,6 +238,7 @@ namespace astpp{
 
 	struct info_map{
 		namespace_info global;
+		std::unordered_map<std::string, namespace_info*> namespaces;
 		std::vector<std::unique_ptr<entity_info>> storage;
 	};
 

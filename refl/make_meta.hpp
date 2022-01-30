@@ -214,7 +214,7 @@ std::string make_class_meta(const ast::class_info &cls){
 		tmpl_args += fmt::format(", {}", tmpl_arg);
 	}
 
-	std::string full_name = "::" + cls.name;
+	std::string full_name = cls.name;
 
 	if(!tmpl_param_names.empty()){
 		tmpl_param_names.erase(0, 2);

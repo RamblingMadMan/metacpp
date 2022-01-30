@@ -102,7 +102,7 @@ std::string make_class_refl(const ast::class_info &cls){
 		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"std::size_t num_bases() const noexcept override{{ return {2}; }}\n"
 		"\t"	"\t"	"reflpp::class_info base(std::size_t idx) const noexcept override{{\n"
-		"\t"	"\t"	"\t"	"reflpp::class_info arr[] = {{ {3} }};\n"
+		"\t"	"\t"	"\t"	"static const reflpp::class_info arr[] = {{ {3} }};\n"
 		"\t"	"\t"	"\t"	"return idx >= num_bases() ? nullptr : arr[idx];\n"
 		"\t"	"\t"	"}}\n"
 		"\t"	"\t"	"void *cast_to_base(void*, std::size_t i) const noexcept override{{ return nullptr; }}\n"

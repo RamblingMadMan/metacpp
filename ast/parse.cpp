@@ -514,30 +514,7 @@ namespace astpp::detail{
 					print_parse_error(path, "Failed to get base class declaration for '{}'", inner.spelling());
 				}
 				else if(base_decl_c.kind() == CXCursor_ClassTemplate){
-					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, &infos.global);
-					if(base_decl_opt){
-						auto &&base_decl = *base_decl_opt;
-
-						//base_decl.template_params.clear();
-
-						/*
-						auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
-
-						base.name += "<";
-
-						for(int i = 0; i < num_tmpl_args; i++){
-							clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
-							base.name += arg_type.spelling() + ", ";
-						}
-
-						base.name.erase(base.name.size() - 2);
-						base.name += ">";
-						*/
-
-						//auto base_cls = store_info(infos, std::move(base_decl));
-
-						//infos.global.classes[base_cls->name] = base_cls;
-					}
+					//auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, &infos.global);
 				}
 
 				ret.bases.emplace_back(std::move(base));

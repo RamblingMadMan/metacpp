@@ -430,10 +430,7 @@ namespace astpp::detail{
 			ret.template_args = std::move(tmpl_args);
 		}
 
-
 		c.visit_children([&](clang::cursor inner, clang::cursor){
-			// TODO: check 'ptr' in each branch
-
 			if(in_template){
 				switch(inner.kind()){
 					case CXCursor_TemplateTypeParameter:{
@@ -490,7 +487,7 @@ namespace astpp::detail{
 				auto base_type = inner.type();
 
 				class_base_info base;
-				base.name = base_type.spelling();
+				base.name = inner.spelling();
 
 				switch(clang_getCXXAccessSpecifier(inner)){
 					case CX_CXXPublic:{
@@ -519,16 +516,21 @@ namespace astpp::detail{
 					if(base_decl_opt){
 						auto &&base_decl = *base_decl_opt;
 
-						base_decl.skip_meta = true;
-
 						//base_decl.template_params.clear();
 
-						//auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+						/*
+						auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
 
-						//for(int i = 0; i < num_tmpl_args; i++){
-						//	clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
-						//	base_decl.template_args.emplace_back(arg_type.spelling());
-						//}
+						base.name += "<";
+
+						for(int i = 0; i < num_tmpl_args; i++){
+							clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
+							base.name += arg_type.spelling() + ", ";
+						}
+
+						base.name.erase(base.name.size() - 2);
+						base.name += ">";
+						*/
 
 						auto base_cls = store_info(infos, std::move(base_decl));
 

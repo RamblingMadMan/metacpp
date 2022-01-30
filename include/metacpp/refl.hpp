@@ -194,6 +194,8 @@ namespace reflpp{
 			static auto reflect(){
 				if constexpr(std::is_class_v<T>){
 					struct class_info_impl: info_helper_base<T, class_info_helper>{
+						class_info_impl(){ register_type(this); }
+
 						std::size_t num_methods() const noexcept override{ return 0; }
 						const class_method_helper *method(std::size_t idx) const noexcept override{ return nullptr; }
 
@@ -205,7 +207,9 @@ namespace reflpp{
 					return &ret;
 				}
 				else{
-					struct type_info_impl: info_helper_base<T, type_info_helper>{} static ret;
+					struct type_info_impl: info_helper_base<T, type_info_helper>{
+						type_info_impl(){ register_type(this); }
+					} static ret;
 					return &ret;
 				}
 			}

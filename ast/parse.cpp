@@ -372,13 +372,6 @@ namespace astpp::detail{
 			return ret;
 		}
 
-		auto store_info = [&infos](auto &info){
-			auto ptr = std::make_unique<std::remove_reference_t<decltype(info)>>(std::move(info));
-			auto ret = ptr.get();
-			infos.storage.emplace_back(std::move(ptr));
-			return ret;
-		};
-
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
 		bool in_template = is_template;
@@ -404,10 +397,10 @@ namespace astpp::detail{
 			}
 
 			if(inner.kind() == CXCursor_CXXBaseSpecifier){
-				auto base_type = clang_getCursorType(inner);
+				auto base_type = inner.type();
 
 				class_base_info base;
-				base.name = clang::detail::convert_str(clang_getTypeSpelling(base_type));
+				base.name = base_type.spelling();
 
 				switch(clang_getCXXAccessSpecifier(inner)){
 					case CX_CXXPublic:{
@@ -426,23 +419,39 @@ namespace astpp::detail{
 					}
 				}
 
+				clang::cursor base_decl_c = clang_getTypeDeclaration(base_type);
+
+				if(!base_decl_c.is_null() && base_decl_c.kind() == CXCursor_ClassTemplate){
+					auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, "");
+					if(base_decl_opt){
+						auto &&base_decl = *base_decl_opt;
+						// TODO: reflect base class specialization
+
+						base_decl.is_template = false;
+						base_decl.template_params.clear();
+						base_decl.name = inner.spelling();
+
+						store_info(infos, std::move(base_decl));
+					}
+				}
+
 				ret.bases.emplace_back(std::move(base));
 				return;
 			}
 			else if(auto class_decl = detail::parse_class_decl(path, infos, inner, ns); class_decl){
-				auto ptr = store_info(*class_decl);
+				auto ptr = store_info(infos, std::move(*class_decl));
 				ret.classes[ptr->name] = ptr;
 			}
 			else if(auto ctor = detail::parse_class_ctor(path, infos, inner, ns); ctor){
-				auto ptr = store_info(*ctor);
+				auto ptr = store_info(infos, std::move(*ctor));
 				ret.ctors.emplace_back(ptr);
 			}
 			else if(auto dtor = detail::parse_class_dtor(path, infos, inner, ns); dtor){
-				auto ptr = store_info(*dtor);
+				auto ptr = store_info(infos, std::move(*dtor));
 				ret.dtor = ptr;
 			}
 			else if(auto method = detail::parse_class_method(path, infos, inner, ns); method){
-				auto ptr = store_info(*method);
+				auto ptr = store_info(infos, std::move(*method));
 				ret.methods[ptr->name].emplace_back(ptr);
 			}
 			else if(auto member = detail::parse_class_member(path, infos, inner, ns); member){

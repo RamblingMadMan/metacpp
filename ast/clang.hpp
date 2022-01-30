@@ -222,6 +222,8 @@ namespace astpp::clang{
 			friend class cursor;
 	};
 
+	class cursor;
+
 	class type{
 		public:
 			type(CXType t) noexcept
@@ -236,6 +238,8 @@ namespace astpp::clang{
 			std::string spelling(){
 				return detail::convert_str(clang_getTypeSpelling(m_handle));
 			}
+
+			cursor declaration() const noexcept;
 
 		private:
 			CXType m_handle;
@@ -268,6 +272,10 @@ namespace astpp::clang{
 
 			std::string kind_spelling(){
 				return detail::convert_str(clang_getCursorKindSpelling(kind()));
+			}
+
+			bool is_null() const noexcept{
+				return clang_Cursor_isNull(m_handle);
 			}
 
 			bool is_class_decl() const noexcept{
@@ -317,6 +325,10 @@ namespace astpp::clang{
 		private:
 			CXCursor m_handle;
 	};
+
+	inline cursor type::declaration() const noexcept{
+		return clang_getTypeDeclaration(m_handle);
+	}
 
 	class compilation_database: public handle<CXCompilationDatabase, clang_CompilationDatabase_dispose>{
 		public:

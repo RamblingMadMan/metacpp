@@ -46,9 +46,11 @@ namespace {
 			}
 
 			bool register_type(refl::type_info info){
-				auto res = m_types.find(info->name());
-				if(res != m_types.end()){
-					return false;
+				if(!m_types.empty()){
+					auto res = m_types.find(info->name());
+					if(res != m_types.end()){
+						return false;
+					}
 				}
 
 				auto emplace_res = m_types.try_emplace(info->name(), info);

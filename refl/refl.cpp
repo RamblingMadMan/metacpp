@@ -22,9 +22,11 @@ namespace {
 			~type_loader(){}
 
 			refl::type_info load(std::string_view name){
-				auto registered_res = m_types.find(std::string(name));
-				if(registered_res != m_types.end()){
-					return registered_res->second;
+				if(!m_types.empty()){
+					auto registered_res = m_types.find(name);
+					if(registered_res != m_types.end()){
+						return registered_res->second;
+					}
 				}
 
 				auto exported_types = plugin::self()->exported_types();
@@ -44,12 +46,12 @@ namespace {
 			}
 
 			bool register_type(refl::type_info info){
-				auto res = m_types.find(std::string(info->name()));
+				auto res = m_types.find(info->name());
 				if(res != m_types.end()){
 					return false;
 				}
 
-				auto emplace_res = m_types.try_emplace(std::string(info->name()), info);
+				auto emplace_res = m_types.try_emplace(info->name(), info);
 				if(!emplace_res.second){
 					return false;
 				}
@@ -58,8 +60,10 @@ namespace {
 			}
 
 		private:
-			std::unordered_map<std::string, refl::type_info> m_types;
-	} static loader;
+			std::unordered_map<std::string_view, refl::type_info> m_types;
+	};
+
+	type_loader REFLCPP_EXPORT_SYMBOL loader;
 
 	struct void_info_helper: refl::detail::type_info_helper{
 		std::string_view name() const noexcept override{ return "void"; }

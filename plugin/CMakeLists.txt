@@ -6,7 +6,7 @@ add_library(metacpp-plugin STATIC plugin.cpp)
 add_library(metacpp::plugin ALIAS metacpp-plugin)
 add_library(metapp::plugin ALIAS metacpp-plugin)
 
-target_link_libraries(metacpp-plugin PRIVATE metacpp::refl Boost::system)
+target_link_libraries(metacpp-plugin PRIVATE metacpp::refl Boost::system ${CMAKE_DL_LIBS})
 
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(

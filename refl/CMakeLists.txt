@@ -8,12 +8,8 @@ add_library(metapp::refl ALIAS metacpp-refl)
 
 target_compile_features(metacpp-refl PUBLIC cxx_std_17)
 
-target_link_libraries(metacpp-refl PUBLIC metacpp::headers fmt::fmt-header-only)
-target_link_libraries(metacpp-refl PRIVATE Boost::system metacpp::plugin ${CMAKE_DL_LIBS})
-
-set_target_properties(
-	metacpp-refl PROPERTIES POSITION_INDEPENDENT_CODE OFF
-)
+target_link_libraries(metacpp-refl PUBLIC metacpp::headers metacpp::plugin fmt::fmt-header-only)
+target_link_libraries(metacpp-refl PRIVATE Boost::system)
 
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(
@@ -22,6 +18,7 @@ if(METACPP_IPO_SUPPORTED)
 endif()
 
 add_executable(reflpp tool.cpp)
+add_executable(metacpp::refl-tool ALIAS reflpp)
 add_executable(metapp::refl-tool ALIAS reflpp)
 
 target_compile_features(reflpp PRIVATE cxx_std_17)

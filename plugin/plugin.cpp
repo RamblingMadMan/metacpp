@@ -36,7 +36,6 @@ namespace {
 			{
 				if(!m_handle){
 					auto msg = fmt::format("Error in dlopen: {}", dlerror());
-					print_error("{}", msg);
 					throw std::runtime_error(msg);
 				}
 
@@ -52,7 +51,6 @@ namespace {
 			{
 				if(!m_handle){
 					auto msg = fmt::format("Error in dlopen: {}", dlerror());
-					print_error("{}", msg);
 					throw std::runtime_error(msg);
 				}
 
@@ -160,11 +158,7 @@ namespace {
 
 	class plugin_loader{
 		public:
-			plugin_loader(){
-				const auto program_path = dll::program_location();
-				const auto abs_path = fs::absolute(program_path);
-				m_libraries.try_emplace(abs_path, self_t{});
-			}
+			plugin_loader(): m_self(self_t{}){}
 
 			const dynamic_library *load(const fs::path &path){
 				if(!fs::exists(path)){
@@ -192,18 +186,24 @@ namespace {
 				return &emplace_res.first->second;
 			}
 
+			const dynamic_library *self() const noexcept{
+				return &m_self;
+			}
+
 		private:
+			dynamic_library m_self;
 			std::unordered_map<std::string, dynamic_library> m_libraries;
 	};
+
+	static plugin_loader loader;
 }
 
 const library *plugin::load(const fs::path &path){
-	static plugin_loader loader;
 	return loader.load(path);
 }
 
 const library *plugin::self(){
-	return plugin::load(dll::program_location());
+	return loader.self();
 }
 
 std::vector<std::filesystem::path> plugin::nearby_plugins(){

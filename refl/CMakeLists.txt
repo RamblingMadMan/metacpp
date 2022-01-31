@@ -11,6 +11,10 @@ target_compile_features(metacpp-refl PUBLIC cxx_std_17)
 target_link_libraries(metacpp-refl PUBLIC metacpp::headers fmt::fmt-header-only)
 target_link_libraries(metacpp-refl PRIVATE Boost::system metacpp::plugin ${CMAKE_DL_LIBS})
 
+set_target_properties(
+	metacpp-refl PROPERTIES POSITION_INDEPENDENT_CODE OFF
+)
+
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(
 		metacpp-refl PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON
@@ -90,7 +94,7 @@ function(target_reflect tgt)
 	if(${TGT_TYPE} STREQUAL "EXECUTABLE")
 		set_target_properties(
 			${tgt} PROPERTIES
-			POSITION_INDEPENDENT_CODE ON
+			POSITION_INDEPENDENT_CODE OFF
 			ENABLE_EXPORTS ON
 		)
 	endif()

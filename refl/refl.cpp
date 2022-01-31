@@ -38,7 +38,7 @@ namespace {
 					return *res;
 				}
 
-				fmt::print(stderr, "Failed to import reflected type '{}'\n", name);
+				//fmt::print(stderr, "Failed to import reflected type '{}'\n", name);
 
 				return nullptr;
 			}

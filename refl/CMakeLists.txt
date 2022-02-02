@@ -2,20 +2,18 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-add_library(metacpp-refl STATIC make_meta.hpp refl.cpp)
+add_library(metacpp-refl SHARED make_meta.hpp refl.cpp)
 add_library(metacpp::refl ALIAS metacpp-refl)
 add_library(metapp::refl ALIAS metacpp-refl)
 
 target_compile_features(metacpp-refl PUBLIC cxx_std_17)
 
-target_link_libraries(metacpp-refl PUBLIC metacpp::headers metacpp::plugin fmt::fmt-header-only)
+target_link_libraries(metacpp-refl PUBLIC metacpp::headers fmt::fmt-header-only)
 target_link_libraries(metacpp-refl PRIVATE Boost::system)
 
-if(METACPP_IPO_SUPPORTED)
-	set_target_properties(
-		metacpp-refl PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON
-	)
-endif()
+set_target_properties(
+	metacpp-refl PROPERTIES POSITION_INDEPENDENT_CODE ON
+)
 
 add_executable(reflpp tool.cpp)
 add_executable(metacpp::refl-tool ALIAS reflpp)

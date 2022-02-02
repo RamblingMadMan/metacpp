@@ -10,8 +10,21 @@ add_plugin(
 	INCLUDE_DIRS
 	include
 
-	SOURCES
+	HEADERS
 	test.hpp
+)
+
+add_plugin(
+	plugin-test-other
+
+	INCLUDE_DIRS
+	include
+
+	HEADERS
+	include/test/example.h
+
+	LIBRARIES
+	plugin-test
 )
 
 add_executable(loader-test include/test/example.h loader.cpp)
@@ -33,7 +46,7 @@ target_include_directories(loader-test PRIVATE include)
 
 target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)
 target_link_libraries(loader-test PRIVATE fmt::fmt-header-only)
-target_link_plugins(loader-test plugin-test)
+target_link_plugins(loader-test plugin-test plugin-test-other)
 
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(
@@ -43,6 +56,7 @@ if(METACPP_IPO_SUPPORTED)
 endif()
 
 target_reflect(plugin-test)
+target_reflect(plugin-test-other)
 target_reflect(loader-test)
 target_reflect(ast-test)
 target_reflect(meta-example)

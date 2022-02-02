@@ -17,6 +17,13 @@ endif()
 function(add_plugin tgt)
 	add_library(${tgt} SHARED)
 
+	set_target_properties(
+		${tgt} PROPERTIES
+		CXX_STANDARD 17
+		CXX_STANDARD_REQUIRED ON
+		POSITION_INDEPENDENT_CODE ON
+	)
+
 	target_link_libraries(${tgt} PRIVATE metacpp::attribs)
 
 	set(DO_REFLECT OFF)
@@ -29,11 +36,17 @@ function(add_plugin tgt)
 			set(CUR_MODE "INCLUDE_DIRS")
 		elseif("${arg}" STREQUAL "SOURCES")
 			set(CUR_MODE "SOURCES")
+		elseif("${arg}" STREQUAL "HEADERS")
+			set(CUR_MODE "HEADERS")
 		elseif("${arg}" STREQUAL "LIBRARIES")
 			set(CUR_MODE "LIBRARIES")
 		elseif("${CUR_MODE}" STREQUAL "INCLUDE_DIRS")
 			target_include_directories(${tgt} PRIVATE ${arg})
 		elseif("${CUR_MODE}" STREQUAL "SOURCES")
+			set_source_files_properties(${arg} PROPERTIES LANGUAGE CXX)
+			target_sources(${tgt} PRIVATE ${arg})
+		elseif("${CUR_MODE}" STREQUAL "HEADERS")
+			set_source_files_properties(${arg} PROPERTIES LANGUAGE CXX HEADER_FILE_ONLY TRUE)
 			target_sources(${tgt} PRIVATE ${arg})
 		elseif("${CUR_MODE}" STREQUAL "LIBRARIES")
 			target_link_libraries(${tgt} PRIVATE ${arg})

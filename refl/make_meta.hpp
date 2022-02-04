@@ -27,7 +27,7 @@ std::string make_function_meta(
 		auto &&param_name = fn.param_names[i];
 
 		output += fmt::format(
-			"template<> struct metapp::detail::param_info_data<metapp::value<{0}>, {1}>{{\n"
+			"template<> struct metapp::detail::param_info_data<metapp::value<({0})>, {1}>{{\n"
 			"\t"	"using type = {2};\n"
 			"\t"	"static constexpr std::string_view name = \"{0}\";\n"
 			"}};\n"
@@ -53,7 +53,7 @@ std::string make_function_meta(
 
 	return fmt::format(
 		"{0}"
-		"template<> struct metapp::detail::function_info_data<{1}>{{\n"
+		"template<> struct metapp::detail::function_info_data<({1})>{{\n"
 		"\t"	"static constexpr std::string_view name = \"{1}\";\n"
 		"\t"	"using type = {2}(*)({3});\n"
 		"\t"	"static constexpr type ptr = (type){1};\n"

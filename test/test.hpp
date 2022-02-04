@@ -70,6 +70,10 @@ struct TestTemplateClass{
 		T m_value;
 };
 
+inline bool operator>(TestTemplateClass<int> a, TestTemplateClass<int> b){
+	return a.value() > b.value();
+}
+
 namespace detail{
 	template<typename ... Ts>
 	class TestDerivedTemplateHelper: public TestTemplateClass<Ts>...{

@@ -37,7 +37,7 @@ std::string make_function_meta(
 
 		params_member_str += fmt::format(
 			",\n"
-			"\t"	"\t"	"metapp::param_info<metapp::value<ptr>, {}>",
+			"\t"	"\t"	"metapp::param_info<metapp::value<ptr>, metapp::value<{}>>",
 			i
 		);
 
@@ -144,7 +144,7 @@ std::string make_method_meta(
 		param_names_member_str += fmt::format("\t\t"	"metapp::str(\"{}\")", param_name);
 
 		params_member_str += ",\n";
-		params_member_str += fmt::format("\t\t"		"metapp::class_method_param_info<{0}, {1}, {2}>", full_name, idx, i);
+		params_member_str += fmt::format("\t\t"		"metapp::class_method_param_info<{0}, metapp::value<{1}>, metapp::value<{2}>>", full_name, idx, i);
 	}
 
 	if(!param_types_str.empty()){
@@ -207,7 +207,15 @@ std::string make_class_meta(const ast::class_info &cls){
 
 	for(auto &&tmpl_param : cls.template_params){
 		tmpl_param_names += fmt::format(", {}", tmpl_param.name);
-		tmpl_params += fmt::format(", {} {}", tmpl_param.declarator, tmpl_param.name);
+		if(tmpl_param.is_variadic){
+			tmpl_param_names += "...";
+		}
+
+		tmpl_params += fmt::format(
+			", {}{} {}",
+			tmpl_param.declarator, (tmpl_param.is_variadic ? "..." : ""),
+			tmpl_param.name
+		);
 	}
 
 	std::string full_name = cls.name;
@@ -221,9 +229,19 @@ std::string make_class_meta(const ast::class_info &cls){
 	std::size_t base_idx = 0;
 
 	for(auto &&base : cls.bases){
+		std::string type_alias;
+
+		if(base.is_variadic){
+			type_alias = fmt::format("metapp::types<{}...>", base.name);
+		}
+		else{
+			type_alias = base.name;
+		}
+
 		output += fmt::format(
 			"template<{0}> struct metapp::detail::class_base_info_data<{1}, {2}>{{\n"
 			"\t"	"static constexpr auto access = metapp::access_kind::{3};\n"
+			"\t"	"static constexpr bool is_variadic = {5};\n"
 			"\t"	"using type = {4};\n"
 			"}};\n"
 			"\n",
@@ -231,12 +249,13 @@ std::string make_class_meta(const ast::class_info &cls){
 			full_name,
 			base_idx,
 			access_to_str(base.access),
-			base.name
+			type_alias,
+			(base.is_variadic ? "true" : "false")
 		);
 
 		bases_member_str += fmt::format(
 			",\n"
-			"\t\t"	"metapp::class_base_info<{0}, {1}>",
+			"\t\t"	"metapp::class_base_info<{0}, metapp::value<{1}>>",
 			full_name,
 			base_idx++
 		);
@@ -256,7 +275,7 @@ std::string make_class_meta(const ast::class_info &cls){
 	for(auto &&attrib : cls.attributes){
 		attribs_member_str += fmt::format(
 			",\n"
-			"\t\t"	"metapp::attrib_info<{0}, {1}>",
+			"\t\t"	"metapp::attrib_info<{0}, metapp::value<{1}>>",
 			full_name,
 			attrib_idx
 		);
@@ -268,7 +287,7 @@ std::string make_class_meta(const ast::class_info &cls){
 		for(auto &&arg : attrib.args()){
 			args_member_str += fmt::format(
 				",\n"
-				"\t\t"	"metapp::attrib_arg_info<{0}, {1}, {2}>",
+				"\t\t"	"metapp::attrib_arg_info<{0}, metapp::value<{1}>, metapp::value<{2}>>",
 				full_name,
 				attrib_idx,
 				attrib_arg_idx
@@ -312,7 +331,7 @@ std::string make_class_meta(const ast::class_info &cls){
 		for(auto &&m : methods.second){
 			methods_member_str += fmt::format(
 				",\n"
-				"\t\t"	"metapp::class_method_info<{0}, {1}>",
+				"\t\t"	"metapp::class_method_info<{0}, metapp::value<{1}>>",
 				full_name, method_idx
 			);
 
@@ -324,7 +343,7 @@ std::string make_class_meta(const ast::class_info &cls){
 	for(auto &&member : cls.members){
 		members_member_str += fmt::format(
 			",\n"
-			"\t\t"	"metapp::class_member_info<{0}, {1}>",
+			"\t\t"	"metapp::class_member_info<{0}, metapp::value<{1}>>",
 			full_name, member_idx
 		);
 
@@ -369,7 +388,7 @@ std::string make_class_meta(const ast::class_info &cls){
 		ctors_member_str,
 		members_member_str,
 
-		attribs_member_str, // 6
+		attribs_member_str, // 5
 		tmpl_params,
 		bases_member_str
 	);
@@ -394,7 +413,7 @@ std::string make_enum_meta(const ast::enum_info &enm){
 
 		values_member_str += fmt::format(
 			",\n"
-			"\t\t"	"metapp::enum_value_info<{0}, {1}>",
+			"\t\t"	"metapp::enum_value_info<{0}, metapp::value<{1}>>",
 			enm.name, value_idx++
 		);
 	}

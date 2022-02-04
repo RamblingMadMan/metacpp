@@ -12,6 +12,8 @@
 #include <string_view>
 #include <tuple>
 
+#include "metacpp/meta.hpp"
+
 #include "../../test.hpp"
 
 class [[my::attrib(1, "2", 3.0)]] example{
@@ -25,6 +27,23 @@ class [[my::attrib(1, "2", 3.0)]] example{
 class example_test_derived: public TestTemplateClass<std::string_view>{
 
 };
+
+namespace ex{
+	namespace detail{
+		template<typename Ts>
+		class helper;
+
+		template<typename ... Ts>
+		class helper<meta::types<Ts...>>: public TestTemplateClass<Ts>...{
+
+		};
+	}
+
+	template<typename ... Ts>
+	class example_test_helped: public ex::detail::helper<meta::types<Ts...>>{
+
+	};
+}
 
 enum class example_enum{
 	case_0 = 69,

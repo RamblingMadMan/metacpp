@@ -204,6 +204,29 @@ namespace metapp{
 	template<typename Values, std::size_t I = 0>
 	inline constexpr auto get_v = Values::template value<I>;
 
+	template<template<typename...> class T, typename ... Us>
+	class partial{
+		using args = types<Us...>;
+
+		template<typename ... Vs>
+		using apply = T<Us..., Vs...>;
+	};
+
+	namespace detail{
+		template<typename Ts, typename Indices>
+		struct make_numbered_helper;
+
+		template<typename ... Ts, std::size_t ... Indices>
+		struct make_numbered_helper<types<Ts...>, std::index_sequence<Indices...>>{
+			using type = types<
+				typename Ts::template apply<values<Indices>>...
+			>;
+		};
+
+		template<typename ... Ts>
+		using make_numbered = typename make_numbered_helper<types<Ts...>, std::make_index_sequence<sizeof...(Ts)>>::type;
+	}
+
 	namespace detail{
 		template<typename ... Ls>
 		struct join_helper;
@@ -540,24 +563,24 @@ namespace metapp{
 		public_, protected_, private_
 	};
 
-	template<typename Ent, std::size_t AttribIdx, std::size_t Idx>
+	template<typename Ent, typename AttribIdx, typename Idx>
 	struct attrib_arg_info{
-		static constexpr std::string_view value = detail::attrib_arg_info_data<Ent, AttribIdx, Idx>::value;
+		static constexpr std::string_view value = detail::attrib_arg_info_data<Ent, get_v<AttribIdx>, get_v<Idx>>::value;
 	};
 
-	template<typename Ent, std::size_t Idx>
+	template<typename Ent, typename Idx>
 	struct attrib_info{
-		using args = typename detail::attrib_info_data<Ent, Idx>::args;
+		using args = typename detail::attrib_info_data<Ent, get_v<Idx>>::args;
 
-		static constexpr std::string_view scope = detail::attrib_info_data<Ent, Idx>::scope;
-		static constexpr std::string_view name = detail::attrib_info_data<Ent, Idx>::name;
+		static constexpr std::string_view scope = detail::attrib_info_data<Ent, get_v<Idx>>::scope;
+		static constexpr std::string_view name = detail::attrib_info_data<Ent, get_v<Idx>>::name;
 	};
 
-	template<typename Ent, std::size_t Idx>
+	template<typename Ent, typename Idx>
 	struct param_info{
-		using type = typename detail::param_info_data<Ent, Idx>::type;
+		using type = typename detail::param_info_data<Ent, get_v<Idx>>::type;
 
-		static constexpr std::string_view name = detail::param_info_data<Ent, Idx>::name;
+		static constexpr std::string_view name = detail::param_info_data<Ent, get_v<Idx>>::name;
 	};
 
 	template<auto Fn>
@@ -569,21 +592,21 @@ namespace metapp{
 		static constexpr std::string_view name = detail::function_info_data<Fn>::name;
 	};
 
-	template<typename Class, std::size_t Idx>
+	template<typename Class, typename Idx>
 	struct class_base_info{
-		using type = typename detail::class_base_info_data<Class, Idx>::type;
+		using type = typename detail::class_base_info_data<Class, get_v<Idx>>::type;
 
-		static constexpr access_kind access = detail::class_base_info_data<Class, Idx>::access;
+		static constexpr access_kind access = detail::class_base_info_data<Class, get_v<Idx>>::access;
 	};
 
-	template<typename Class, std::size_t Idx>
+	template<typename Class, typename Idx>
 	struct class_ctor_info{
-		static constexpr bool is_move_ctor = detail::class_ctor_info_data<Class, Idx>::is_move_ctor;
-		static constexpr bool is_copy_ctor = detail::class_ctor_info_data<Class, Idx>::is_copy_ctor;
-		static constexpr bool is_default_ctor = detail::class_ctor_info_data<Class, Idx>::is_default_ctor;
+		static constexpr bool is_move_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_move_ctor;
+		static constexpr bool is_copy_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_copy_ctor;
+		static constexpr bool is_default_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_default_ctor;
 
-		static constexpr std::size_t num_params = detail::class_ctor_info_data<Class, Idx>::num_params;
-		//using param_types = typename detail::param_info_data<class_ctor_info<Class, Idx>, Idx>::param_types;
+		static constexpr std::size_t num_params = detail::class_ctor_info_data<Class, get_v<Idx>>::num_params;
+		//using param_types = typename detail::param_info_data<class_ctor_info<Class, get_v<Idx>>, Idx>::param_types;
 	};
 
 	template<typename Class>
@@ -592,22 +615,22 @@ namespace metapp{
 		//static constexpr bool is_defaulted = detail::class_dtor_info_data<Class>::is_defaulted;
 	};
 
-	template<typename Class, std::size_t MethodIdx, std::size_t Idx>
+	template<typename Class, typename MethodIdx, typename Idx>
 	struct class_method_param_info{
-		static constexpr std::string_view name = detail::class_method_param_info_data<Class, MethodIdx, Idx>::name;
-		using type = typename detail::class_method_param_info_data<Class, MethodIdx, Idx>::type;
+		static constexpr std::string_view name = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::name;
+		using type = typename detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::type;
 	};
 
-	template<typename Class, std::size_t Idx>
+	template<typename Class, typename Idx>
 	struct class_method_info{
-		using ptr_type = typename detail::class_method_info_data<Class, Idx>::ptr_type;
-		using result = typename detail::class_method_info_data<Class, Idx>::result;
-		using param_types = typename detail::class_method_info_data<Class, Idx>::param_types;
-		using params = typename detail::class_method_info_data<Class, Idx>::params;
+		using ptr_type = typename detail::class_method_info_data<Class, get_v<Idx>>::ptr_type;
+		using result = typename detail::class_method_info_data<Class, get_v<Idx>>::result;
+		using param_types = typename detail::class_method_info_data<Class, get_v<Idx>>::param_types;
+		using params = typename detail::class_method_info_data<Class, get_v<Idx>>::params;
 
-		static constexpr std::string_view name = detail::class_method_info_data<Class, Idx>::name;
-		static constexpr bool is_virtual = detail::class_method_info_data<Class, Idx>::is_virtual;
-		static constexpr auto ptr = detail::class_method_info_data<Class, Idx>::ptr;
+		static constexpr std::string_view name = detail::class_method_info_data<Class, get_v<Idx>>::name;
+		static constexpr bool is_virtual = detail::class_method_info_data<Class, get_v<Idx>>::is_virtual;
+		static constexpr auto ptr = detail::class_method_info_data<Class, get_v<Idx>>::ptr;
 
 		template<typename T, typename ... Args>
 		static constexpr decltype(auto) call(T &&cls, Args &&... args){
@@ -615,12 +638,12 @@ namespace metapp{
 		}
 	};
 
-	template<typename Class, std::size_t Idx>
+	template<typename Class, typename Idx>
 	struct class_member_info{
-		using type = typename detail::class_member_info_data<Class, Idx>::type;
+		using type = typename detail::class_member_info_data<Class, get_v<Idx>>::type;
 
-		static constexpr std::string_view name = detail::class_member_info_data<Class, Idx>::name;
-		static constexpr auto ptr = detail::class_member_info_data<Class, Idx>::ptr;
+		static constexpr std::string_view name = detail::class_member_info_data<Class, get_v<Idx>>::name;
+		static constexpr auto ptr = detail::class_member_info_data<Class, get_v<Idx>>::ptr;
 
 		template<typename T>
 		static constexpr auto get(T &&cls){
@@ -761,10 +784,10 @@ namespace metapp{
 	template<typename Class>
 	using members = typename class_info<Class>::members;
 
-	template<typename Enum, std::size_t Idx>
+	template<typename Enum, typename Idx>
 	struct enum_value_info{
-		static constexpr std::string_view name = detail::enum_value_info_data<Enum, Idx>::name;
-		static constexpr std::uint64_t value = detail::enum_value_info_data<Enum, Idx>::value;
+		static constexpr std::string_view name = detail::enum_value_info_data<Enum, get_v<Idx>>::name;
+		static constexpr std::uint64_t value = detail::enum_value_info_data<Enum, get_v<Idx>>::value;
 	};
 
 	template<typename Enum>

@@ -17,6 +17,7 @@
 
 #include "fmt/format.h"
 
+#include <iterator>
 #include <functional>
 #include <optional>
 
@@ -141,6 +142,13 @@ namespace astpp::clang{
 				return *this;
 			}
 
+			token_iterator &operator--() noexcept{
+				if(m_it == m_begin) return *this;
+				--m_it;
+				m_val = token(m_tu, *m_it);
+				return *this;
+			}
+
 			bool operator==(const token_iterator &other) const noexcept{
 				return m_tu == other.m_tu && m_it == other.m_it;
 			}
@@ -149,16 +157,23 @@ namespace astpp::clang{
 				return m_tu != other.m_tu || m_it != other.m_it;
 			}
 
+			using difference_type = long;
+			using value_type = token;
+			using pointer = const token*;
+			using reference = const token&;
+			using iterator_category = std::bidirectional_iterator_tag;
+
 		private:
-			token_iterator(CXTranslationUnit tu, CXToken *it, CXToken *end_)
+			token_iterator(CXTranslationUnit tu, CXToken *it, CXToken *begin_, CXToken *end_)
 			: m_tu(tu)
 			, m_it(it)
+			, m_begin(begin_)
 			, m_end(end_)
 			, m_val(it == end_ ? token() : token(tu, *m_it))
 			{}
 
 			CXTranslationUnit m_tu = nullptr;
-			CXToken *m_it = nullptr, *m_end = nullptr;
+			CXToken *m_it = nullptr, *m_begin = nullptr, *m_end = nullptr;
 			token m_val;
 
 			friend class tokens;
@@ -199,12 +214,12 @@ namespace astpp::clang{
 			std::size_t size() const noexcept{ return m_num_toks; }
 
 			auto begin() const noexcept{
-				return token_iterator(m_tu, m_toks, m_toks + m_num_toks);
+				return token_iterator(m_tu, m_toks, m_toks, m_toks + m_num_toks);
 			}
 
 			auto end() const noexcept{
 				const auto end_ptr = m_toks + m_num_toks;
-				return token_iterator(m_tu, end_ptr, end_ptr);
+				return token_iterator(m_tu, end_ptr, m_toks, end_ptr);
 			}
 
 		private:

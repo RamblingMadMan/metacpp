@@ -393,10 +393,31 @@ namespace astpp::detail{
 			return std::nullopt;
 		}
 
-		auto base_type = c.type();
+		clang::type base_type = c.type();
 
 		class_base_info base;
-		base.name = c.spelling();
+		base.name = base_type.spelling();
+
+		auto toks = c.tokens();
+		auto toks_begin = std::make_reverse_iterator(toks.end());
+
+		auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+
+		std::unordered_map<std::string_view, const template_param_info*> param_map;
+		for(auto &&param : cls->template_params){
+			param_map[param.name] = &param;
+		}
+
+		for(int i = 0; i < num_tmpl_args; i++){
+			clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
+			auto res = param_map.find(arg_type.spelling());
+			if(res != param_map.end()){
+				if(res->second->is_variadic){
+					base.is_variadic = true;
+					break;
+				}
+			}
+		}
 
 		switch(clang_getCXXAccessSpecifier(c)){
 			case CX_CXXPublic:{
@@ -439,10 +460,13 @@ namespace astpp::detail{
 			return std::nullopt;
 		}
 
-		auto def_cursor = clang_getCursorDefinition(c);
-		if(!clang_Cursor_isNull(def_cursor)){
-			c = def_cursor;
+		clang::cursor def_cursor = clang_getCursorDefinition(c);
+		if(clang_isInvalid(def_cursor.kind())){
+			print_parse_error(path, "could not get definition for base class '{}'", c.spelling());
+			return std::nullopt;
 		}
+
+		c = def_cursor;
 
 		auto class_name = c.spelling();
 		auto class_type = c.type().spelling();
@@ -463,12 +487,6 @@ namespace astpp::detail{
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
 		ret.is_template = is_template;
 
-		std::unordered_map<std::string, std::string> tmpl_arg_map;
-
-		if(clang_Cursor_isNull(def_cursor)){
-			return ret;
-		}
-
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
 		bool in_template = is_template;
@@ -479,31 +497,25 @@ namespace astpp::detail{
 					case CXCursor_TemplateTypeParameter:{
 						template_param_info param;
 
-						auto arg_kind = clang_Cursor_getTemplateArgumentKind(inner, ret.template_params.size());
+						auto inner_toks = inner.tokens();
 
-						if(arg_kind != CXTemplateArgumentKind_Invalid){
-							switch(arg_kind){
-								case CXTemplateArgumentKind_Pack:{
-									param.declarator = "typename ...";
-									param.is_variadic = true;
-									break;
-								}
+						auto toks_begin = inner_toks.begin();
+						auto toks_end = inner_toks.end();
 
-								default:{
-									param.declarator = "typename";
-									param.is_variadic = false;
-									break;
-								}
-							}
+						auto toks_it = toks_begin;
+
+						param.declarator = toks_it->str();
+
+						++toks_it;
+
+						if(toks_it != toks_end){
+							param.is_variadic = toks_it->str() == "...";
 						}
 						else{
-							param.declarator = "typename";
 							param.is_variadic = false;
 						}
 
 						param.name = inner.spelling();
-
-						tmpl_arg_map[param.name] = param.name;
 
 						ret.template_params.emplace_back(std::move(param));
 
@@ -525,39 +537,8 @@ namespace astpp::detail{
 				}
 			}
 
-			if(inner.kind() == CXCursor_CXXBaseSpecifier){
-				auto base_type = inner.type();
-
-				class_base_info base;
-				base.name = inner.spelling();
-
-				switch(clang_getCXXAccessSpecifier(inner)){
-					case CX_CXXPublic:{
-						base.access = access_kind::public_;
-						break;
-					}
-
-					case CX_CXXProtected:{
-						base.access = access_kind::protected_;
-						break;
-					}
-
-					default:{
-						base.access = access_kind::private_;
-						break;
-					}
-				}
-
-				clang::cursor base_decl_c = clang_getTypeDeclaration(base_type);
-
-				if(base_decl_c.is_null()){
-					print_parse_error(path, "Failed to get base class declaration for '{}'", inner.spelling());
-				}
-				else if(base_decl_c.kind() == CXCursor_ClassTemplate){
-					//auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, &infos.global);
-				}
-
-				ret.bases.emplace_back(std::move(base));
+			if(auto base_opt = parse_class_base(path, infos, inner, &ret); base_opt){
+				ret.bases.emplace_back(std::move(*base_opt));
 			}
 			else if(auto class_decl = detail::parse_class_decl(path, infos, inner, ns); class_decl){
 				auto ptr = store_info(infos, std::move(*class_decl));

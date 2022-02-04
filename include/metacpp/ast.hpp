@@ -172,13 +172,14 @@ namespace astpp{
 
 		std::string declarator;
 		std::string default_value;
-		bool is_variadic;
+		bool is_variadic = false;
 	};
 
 	struct class_base_info: entity_info{
 		entity_kind kind() const noexcept override{ return entity_kind::class_base; }
 
 		access_kind access;
+		bool is_variadic = false;
 	};
 
 	struct class_info: entity_info{

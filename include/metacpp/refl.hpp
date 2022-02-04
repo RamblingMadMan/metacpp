@@ -54,6 +54,9 @@ namespace reflpp{
 	class_info reflect_class(std::string_view name);
 	enum_info reflect_enum(std::string_view name);
 
+	inline class_info class_(std::string_view name){ return reflect_class(name); }
+	inline enum_info enum_(std::string_view name){ return reflect_enum(name); }
+
 	template<typename Ret, typename ... Args>
 	function_info reflect(Ret(*ptr)(Args...)){
 		return nullptr;
@@ -166,11 +169,42 @@ namespace reflpp{
 			virtual type_info param_type(std::size_t idx) const noexcept = 0;
 		};
 
-		struct class_variable_helper{};
+		template<typename Cls, std::size_t Idx>
+		struct class_method_impl: class_method_helper{
+			using method_info = metapp::class_method<Cls, Idx>;
 
-		struct enum_value_helper{
-			virtual std::uint64_t value() const noexcept = 0;
+			type_info result_type() const noexcept override{
+				static const auto ret = reflect<typename method_info::result>();
+				return ret;
+			}
+
+			std::size_t num_params() const noexcept override{ return method_info::params::size; }
+
+			std::string_view param_name(std::size_t idx) const noexcept override{
+				if(idx >= num_params()) return "";
+				std::string_view ret;
+				metapp::for_all_i<typename method_info::params>([idx, &ret](auto info_type, auto info_idx){
+					if(info_idx != idx) return;
+					using info = metapp::get_t<decltype(info_type)>;
+					ret = info::name;
+				});
+				return ret;
+			}
+
+			type_info param_type(std::size_t idx) const noexcept override{
+				if(idx >= num_params()) return nullptr;
+				type_info ret = nullptr;
+				metapp::for_all_i<typename method_info::params>([idx, &ret](auto info_type, auto info_idx){
+					if(info_idx != idx) return;
+					using info = metapp::get_t<decltype(info_type)>;
+					static const auto reflected = reflect<typename info::type>();
+					ret = reflected;
+				});
+				return ret;
+			}
 		};
+
+		struct class_variable_helper{};
 
 		struct class_info_helper: type_info_helper{
 			virtual std::size_t num_methods() const noexcept = 0;
@@ -182,12 +216,111 @@ namespace reflpp{
 			virtual void *cast_to_base(void *self, std::size_t idx) const noexcept = 0;
 		};
 
+		template<typename T>
+		struct class_info_impl: info_helper_base<T, class_info_helper>{
+			using class_meta = metapp::class_info<T>;
+
+			class_info_impl(){ register_type(this, true); }
+
+			std::size_t num_methods() const noexcept override{ return class_meta::methods::size; }
+
+			const class_method_helper *method(std::size_t idx) const noexcept override{
+				if(idx >= num_methods()) return nullptr;
+
+				const class_method_helper *ret = nullptr;
+
+				metapp::for_all_i<metapp::methods<T>>([idx, &ret](auto info_type, auto info_idx){
+					if(idx != info_idx) return;
+
+					static const class_method_impl<T, metapp::get_v<decltype(info_idx)>> method_impl;
+					ret = &method_impl;
+				});
+
+				return ret;
+			}
+
+			std::size_t num_bases() const noexcept override{ return class_meta::bases::size; }
+
+			class_info base(std::size_t idx) const noexcept override{
+				if(idx >= num_bases()) return nullptr;
+
+				class_info ret = nullptr;
+
+				metapp::for_all_i<metapp::bases<T>>([idx, &ret](auto base_info, auto base_idx){
+					if(idx != base_idx) return;
+
+					using info = metapp::get_t<decltype(base_info)>;
+
+					ret = reflect<typename info::type>();
+				});
+
+				return ret;
+			}
+
+			void *cast_to_base(void *self_void, std::size_t idx) const noexcept override{
+				if(idx >= num_bases()) return nullptr;
+
+				void *ret = nullptr;
+
+				auto self = reinterpret_cast<T*>(self_void);
+
+				metapp::for_all_i<metapp::bases<T>>([self, idx, &ret](auto base_info, auto base_idx){
+					if(idx != base_idx) return;
+
+					using info = metapp::get_t<decltype(base_info)>;
+
+					if constexpr(info::access == metapp::access_kind::public_){
+						ret = static_cast<typename info::type*>(self);
+					}
+				});
+
+				return ret;
+			}
+		};
+
+		struct enum_value_helper{
+			virtual std::string_view name() const noexcept = 0;
+			virtual std::uint64_t value() const noexcept = 0;
+		};
+
+		template<typename Enum, std::size_t Idx>
+		struct enum_value_impl: enum_value_helper{
+			using info = metapp::enum_value<Enum, Idx>;
+			std::string_view name() const noexcept override{ return info::name; }
+			std::uint64_t value() const noexcept override{ return info::value; }
+		};
+
 		struct enum_info_helper: type_info_helper{
 			virtual std::size_t num_values() const noexcept = 0;
 			virtual const enum_value_helper *value(std::size_t idx) const noexcept = 0;
 		};
 
-		bool register_type(type_info info);
+		template<typename T>
+		struct enum_info_impl: info_helper_base<T, enum_info_helper>{
+			using enum_meta = metapp::enum_info<T>;
+
+			enum_info_impl(){ register_type(this, true); }
+
+			std::size_t num_values() const noexcept override{ return enum_meta::values::size; }
+
+			const enum_value_helper *value(std::size_t idx) const noexcept override{
+				if(idx >= num_values()) return nullptr;
+
+				const enum_value_helper *ret = nullptr;
+
+				metapp::for_all_i<typename enum_meta::values>([idx, &ret](auto info_type, auto info_idx){
+					if(idx != info_idx) return;
+
+					using info = metapp::get_t<decltype(info_type)>;
+					static const enum_value_impl<T, metapp::get_v<decltype(info_idx)>> reflected;
+					ret = &reflected;
+				});
+
+				return ret;
+			}
+		};
+
+		bool register_type(type_info info, bool overwrite = false);
 
 		template<typename T>
 		struct reflect_simple{
@@ -212,6 +345,25 @@ namespace reflpp{
 					} static ret;
 					return &ret;
 				}
+			}
+		};
+
+		template<typename T, typename = void>
+		struct reflect_info;
+
+		template<typename Enum>
+		struct reflect_info<Enum, std::enable_if_t<std::is_enum_v<Enum>>>{
+			static auto reflect(){
+				static const enum_info_impl<Enum> ret;
+				return &ret;
+			}
+		};
+
+		template<typename Class>
+		struct reflect_info<Class, std::enable_if_t<std::is_class_v<Class>>>{
+			static auto reflect(){
+				static const class_info_impl<Class> ret;
+				return &ret;
 			}
 		};
 
@@ -264,10 +416,22 @@ namespace reflpp{
 		struct reflect_helper<T, std::enable_if_t<std::is_class_v<T>>>{
 			static class_info reflect(){
 				if(auto ret = reflect_class(metapp::type_name<T>); ret){
+					if constexpr(metapp::has_info<T>){
+						auto elaborated = dynamic_cast<const class_info_impl<T>*>(ret);
+						if(!elaborated){
+							return reflect_info<T>::reflect();
+						}
+					}
+
 					return ret;
 				}
 				else{
-					return reflect_simple<T>::reflect();
+					if constexpr(metapp::has_info<T>){
+						return reflect_info<T>::reflect();
+					}
+					else{
+						return reflect_simple<T>::reflect();
+					}
 				}
 			}
 		};

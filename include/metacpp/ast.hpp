@@ -69,6 +69,7 @@ namespace astpp{
 
 		template_param,
 
+		class_specialization,
 		class_base,
 		class_constructor,
 		class_destructor,
@@ -192,8 +193,14 @@ namespace astpp{
 		std::unordered_map<std::string, const class_info*> classes;
 		std::vector<const class_constructor_info*> ctors;
 		std::vector<template_param_info> template_params;
-		std::vector<std::string> template_args;
 		const class_destructor_info *dtor = nullptr;
+	};
+
+	struct class_specialization: entity_info{
+		entity_kind kind() const noexcept override{ return entity_kind::class_specialization; }
+
+		class_info *cls;
+		std::vector<std::string> template_args;
 	};
 
 	struct enum_value_info: entity_info{

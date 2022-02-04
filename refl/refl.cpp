@@ -12,7 +12,6 @@
 #include "fmt/format.h"
 
 #include "metacpp/refl.hpp"
-#include "metacpp/plugin.hpp"
 
 namespace {
 	class type_loader{
@@ -29,33 +28,25 @@ namespace {
 					}
 				}
 
-				auto exported_types = plugin::self()->exported_types();
-
-				auto res = std::find_if(
-					exported_types.begin(), exported_types.end(),
-					[&](auto type){ return type->name() == name; }
-				);
-
-				if(res != exported_types.end()){
-					return *res;
-				}
-
 				//fmt::print(stderr, "Failed to import reflected type '{}'\n", name);
 
 				return nullptr;
 			}
 
-			bool register_type(refl::type_info info){
-				if(!m_types.empty()){
+			bool register_type(refl::type_info info, bool overwrite){
+				if(!m_types.empty() && !overwrite){
 					auto res = m_types.find(info->name());
 					if(res != m_types.end()){
 						return false;
 					}
-				}
 
-				auto emplace_res = m_types.try_emplace(info->name(), info);
-				if(!emplace_res.second){
-					return false;
+					auto emplace_res = m_types.try_emplace(info->name(), info);
+					if(!emplace_res.second){
+						return false;
+					}
+				}
+				else{
+					m_types[info->name()] = info;
 				}
 
 				return true;
@@ -122,8 +113,8 @@ refl::num_info refl::detail::float_info(std::size_t bits) noexcept{
 	}
 }
 
-bool refl::detail::register_type(refl::type_info info){
-	return loader.register_type(info);
+bool refl::detail::register_type(refl::type_info info, bool overwrite){
+	return loader.register_type(info, overwrite);
 }
 
 refl::type_info refl::reflect(std::string_view name){

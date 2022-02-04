@@ -156,6 +156,42 @@ namespace metapp{
 		constexpr bool operator!=(values<Xs...>) const noexcept{ return false; }
 	};
 
+	template<auto X>
+	struct values<X>{
+		static constexpr auto size = 1;
+		static constexpr bool empty = false;
+
+		constexpr operator decltype(X)() const noexcept{ return X; }
+
+		template<std::size_t I>
+		static constexpr std::enable_if_t<I == 0, decltype(X)> value = X;
+
+		template<auto Y>
+		static constexpr bool contains = X == Y;
+
+		template<typename T>
+		constexpr bool operator==(const T &other) const noexcept{ return X == other; }
+
+		template<auto Y>
+		constexpr bool operator==(values<Y>) const noexcept{ return X == Y; }
+
+		template<auto ... Ys>
+		constexpr bool operator==(values<Ys...>) const noexcept{ return false; }
+
+		constexpr bool operator==(values<X>) const noexcept{ return true; }
+
+		template<typename T>
+		constexpr bool operator!=(const T &other) const noexcept{ return X != other; }
+
+		template<auto Y>
+		constexpr bool operator!=(values<Y>) const noexcept{ return X != Y; }
+
+		template<auto ... Ys>
+		constexpr bool operator!=(values<Ys...>) const noexcept{ return true; }
+
+		constexpr bool operator!=(values<X>) const noexcept{ return false; }
+	};
+
 	/**
 	 * @brief Convienience alias for 1-tuple of values.
 	 */
@@ -279,7 +315,10 @@ namespace metapp{
 			private:
 				template<typename Fn, std::size_t ... Is>
 				static constexpr void invoke_impl(Fn &&f, std::index_sequence<Is...>){
-					if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>, std::size_t> && ...)){
+					if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>, values<Is>> && ...)){
+						(std::forward<Fn>(f)(type<Ts>{}, values<Is>{}), ...);
+					}
+					else if constexpr((std::is_invocable_v<std::decay_t<Fn>, type<Ts>, std::size_t> && ...)){
 						(std::forward<Fn>(f)(type<Ts>{}, Is), ...);
 					}
 					else{
@@ -301,7 +340,10 @@ namespace metapp{
 			private:
 				template<typename Tup, typename Fn, std::size_t ... Is>
 				static constexpr void invoke_impl(Tup &&tup, Fn &&f, std::index_sequence<Is...>){
-					if constexpr((std::is_invocable_v<std::decay_t<Fn>, std::tuple_element<Is, std::decay_t<Tup>>, std::size_t> && ...)){
+					if constexpr((std::is_invocable_v<std::decay_t<Fn>, std::tuple_element<Is, std::decay_t<Tup>>, values<Is>> && ...)){
+						(std::forward<Fn>(f)(std::get<Is>(std::forward<Tup>(tup)), values<Is>{}), ...);
+					}
+					else if constexpr((std::is_invocable_v<std::decay_t<Fn>, std::tuple_element<Is, std::decay_t<Tup>>, std::size_t> && ...)){
 						(std::forward<Fn>(f)(std::get<Is>(std::forward<Tup>(tup)), Is), ...);
 					}
 					else{
@@ -683,7 +725,7 @@ namespace metapp{
 		using methods = typename detail::class_info_data<Class>::methods;
 		using members = typename detail::class_info_data<Class>::members;		
 
-		static constexpr std::string_view name = type_name<Class>;
+		static constexpr std::string_view name = detail::class_info_data<Class>::name;
 
 		static constexpr bool is_abstract = std::is_abstract_v<Class>;
 
@@ -709,6 +751,9 @@ namespace metapp{
 
 	template<typename Class, std::size_t Idx>
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;
+
+	template<typename Class>
+	using bases = typename class_info<Class>::bases;
 
 	template<typename Class>
 	using methods = typename class_info<Class>::methods;
@@ -764,7 +809,7 @@ namespace metapp{
 	inline constexpr std::size_t num_enum_values = enum_info<Enum>::num_values;
 
 	template<typename Enum, std::size_t Idx>
-	inline constexpr std::size_t enum_value = get_v<typename enum_info<Enum>::values, Idx>;
+	using enum_value = get_t<typename enum_info<Enum>::values, Idx>;
 
 	namespace detail{
 		template<typename Ent, typename = void>
@@ -778,6 +823,29 @@ namespace metapp{
 
 	template<typename Ent>
 	using info = typename detail::info_helper<Ent>::type;
+
+	namespace detail{
+		template<typename Ent, typename = void>
+		struct has_info_helper{
+			static constexpr bool value = false;
+		};
+
+		template<typename Class>
+		struct has_info_helper<Class, std::enable_if_t<std::is_class_v<Class>>>{
+			template<typename U>
+			static decltype(detail::class_info_data<U>::name, std::true_type{}) test(std::remove_reference_t<U>*);
+
+			template<typename U>
+			static std::false_type test(...);
+
+			using type = decltype(test<Class>(nullptr));
+
+			static constexpr bool value = type::value;
+		};
+	}
+
+	template<typename Ent>
+	inline constexpr bool has_info = detail::has_info_helper<Ent>::value;
 
 	template<typename Ent>
 	using attributes = typename info<Ent>::attributes;

@@ -386,6 +386,47 @@ namespace astpp::detail{
 		return ret;
 	}
 
+	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns);
+
+	std::optional<class_base_info> parse_class_base(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
+		if(c.kind() != CXCursor_CXXBaseSpecifier){
+			return std::nullopt;
+		}
+
+		auto base_type = c.type();
+
+		class_base_info base;
+		base.name = c.spelling();
+
+		switch(clang_getCXXAccessSpecifier(c)){
+			case CX_CXXPublic:{
+				base.access = access_kind::public_;
+				break;
+			}
+
+			case CX_CXXProtected:{
+				base.access = access_kind::protected_;
+				break;
+			}
+
+			default:{
+				base.access = access_kind::private_;
+				break;
+			}
+		}
+
+		clang::cursor base_decl_c = clang_getTypeDeclaration(base_type);
+
+		if(base_decl_c.is_null()){
+			print_parse_error(path, "Failed to get base class declaration for '{}'", c.spelling());
+		}
+		else if(base_decl_c.kind() == CXCursor_ClassTemplate){
+			auto base_decl_opt = detail::parse_class_decl(path, infos, base_decl_c, &infos.global);
+		}
+
+		return base;
+	}
+
 	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
 		const bool is_template = c.kind() == CXCursor_ClassTemplate;
 
@@ -461,9 +502,8 @@ namespace astpp::detail{
 						}
 
 						param.name = inner.spelling();
-						ret.template_args.emplace_back(param.name);
 
-						tmpl_arg_map[param.name] = ret.template_args[ret.template_params.size()];
+						tmpl_arg_map[param.name] = param.name;
 
 						ret.template_params.emplace_back(std::move(param));
 

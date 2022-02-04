@@ -123,9 +123,22 @@ std::string make_method_meta(
 ){
 	std::string param_metas_str, param_types_str, param_names_member_str, params_member_str;
 
+	auto short_name_start = full_name.find("::");
+	auto short_name_end = full_name.find("<", short_name_start);
+	auto short_name = full_name.substr(short_name_start + 2, short_name_end - 2);
+
 	for(std::size_t i = 0; i < m.param_types.size(); i++){
-		auto &&param_type = m.param_types[i];
+		std::string param_type = m.param_types[i];
 		auto &&param_name = m.param_names[i];
+
+		auto short_res = param_type.find(short_name);
+		if(short_res != std::string::npos){
+			param_type.replace(
+				short_res, short_name.size(), full_name
+			);
+
+			param_type = fmt::format("typename {}", param_type);
+		}
 
 		param_metas_str += fmt::format(
 			"template<{5}> struct metapp::detail::class_method_param_info_data<{0}, {1}, {2}>{{\n"
@@ -157,6 +170,17 @@ std::string make_method_meta(
 		params_member_str += "\n\t";
 	}
 
+	std::string result_type = m.result_type;
+
+	auto short_res = result_type.find(short_name);
+	if(short_res != std::string::npos){
+		result_type.replace(
+			short_res, short_name.size(), full_name
+		);
+
+		result_type = fmt::format("typename {}", result_type);
+	}
+
 	return fmt::format(
 		"{7}"
 		"template<{11}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
@@ -173,13 +197,13 @@ std::string make_method_meta(
 		full_name,
 		idx,
 		m.name,
-		m.result_type,
+		result_type,
 		param_types_str,
 		m.param_types.size(),
 		m.is_const ? " const" : "",
 		param_metas_str,
 		params_member_str,
-		m.result_type,
+		result_type,
 		param_names_member_str,
 		tmpl_params
 	);

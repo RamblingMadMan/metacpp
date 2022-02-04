@@ -55,12 +55,16 @@ class TestDerived: public TestBase, private TestClass{
 template<typename T>
 struct TestTemplateClass{
 	public:
+		using pointer = T*;
+
 		template<typename U>
 		void set_value(U &&v){
 			m_value = std::forward<U>(v);
 		}
 
 		const T &value() const noexcept{ return m_value; }
+
+		pointer ptr() noexcept{ return &m_value; }
 
 	private:
 		T m_value;

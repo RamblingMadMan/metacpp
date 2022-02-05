@@ -337,9 +337,31 @@ namespace astpp::detail{
 
 		class_member_info ret;
 
+		auto member_type = c.type();
+		auto member_type_str = member_type.spelling();
+		clang::cursor type_decl = clang_getTypeDeclaration(member_type);
+		if(!clang_isInvalid(type_decl.kind())){
+			auto namespaces = resolve_namespaces(type_decl);
+			member_type_str = fmt::format("{}::{}", namespaces, member_type_str);
+		}
+
+		auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
+
+		if(num_tmpl_args > 0){
+			member_type_str += "<";
+
+			for(int i = 0; i < num_tmpl_args; i++){
+				clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
+				member_type_str += fmt::format("{}, ", arg_type.spelling());
+			}
+
+			member_type_str.erase(member_type_str.size() - 2);
+			member_type_str += ">";
+		}
+
 		ret.ns = cls->ns;
 		ret.name = c.spelling();
-		ret.type = c.type().spelling();
+		ret.type = member_type_str;
 
 		return ret;
 	}
@@ -461,9 +483,15 @@ namespace astpp::detail{
 		}
 
 		clang::type base_type = c.type();
+		auto base_type_str = base_type.spelling();
+
+		clang::cursor base_decl = clang_getTypeDeclaration(base_type);
+		if(!clang_isInvalid(base_decl.kind())){
+			base_type_str = fmt::format("{}::{}", resolve_namespaces(base_decl), base_decl.spelling());
+		}
 
 		class_base_info base;
-		base.name = base_type.spelling();
+		base.name = std::move(base_type_str);
 
 		auto toks = c.tokens();
 		auto toks_begin = std::make_reverse_iterator(toks.end());
@@ -475,15 +503,25 @@ namespace astpp::detail{
 			param_map[param.name] = &param;
 		}
 
-		for(int i = 0; i < num_tmpl_args; i++){
-			clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
-			auto res = param_map.find(arg_type.spelling());
-			if(res != param_map.end()){
-				if(res->second->is_variadic){
-					base.is_variadic = true;
-					break;
+		if(num_tmpl_args > 0){
+			base.name += "<";
+
+			for(int i = 0; i < num_tmpl_args; i++){
+				clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
+
+				base.name += fmt::format("{}, ", arg_type.spelling());
+
+				auto res = param_map.find(arg_type.spelling());
+				if(res != param_map.end()){
+					if(res->second->is_variadic){
+						base.is_variadic = true;
+						break;
+					}
 				}
 			}
+
+			base.name.erase(base.name.size() - 2);
+			base.name += ">";
 		}
 
 		switch(clang_getCXXAccessSpecifier(c)){

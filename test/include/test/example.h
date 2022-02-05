@@ -47,7 +47,7 @@ namespace ex{
 		class helper<meta::types<Ts...>>: public TestTemplateClass<Ts>...{};
 
 		template<typename Ts>
-		class helper_helper: public ex::detail::helper<Ts>{
+		class helper_helper: public helper<Ts>{
 			template<typename ... Us>
 			ex::detail::helper<meta::types<Us...>> rebind(){
 				return {};
@@ -58,7 +58,7 @@ namespace ex{
 	}
 
 	template<typename ... Ts>
-	class example_test_helped: public ex::detail::helper_helper<meta::types<Ts...>>{
+	class example_test_helped: public detail::helper_helper<meta::types<Ts...>>{
 
 	};
 }

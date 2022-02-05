@@ -229,8 +229,6 @@ std::string make_class_meta(const ast::class_info &cls){
 		methods_member_str,
 		members_member_str;
 
-	std::size_t ctor_idx = 0;
-
 	for(auto &&tmpl_param : cls.template_params){
 		tmpl_param_names += fmt::format(", {}", tmpl_param.name);
 		if(tmpl_param.is_variadic){
@@ -305,8 +303,17 @@ std::string make_class_meta(const ast::class_info &cls){
 		bases_member_str += "\n\t";
 	}
 
+	std::size_t ctor_idx = 0;
+
 	for(auto &&ctor : cls.ctors){
-		output += make_ctor_meta(tmpl_params, full_name, *ctor, ctor_idx++);
+		output += make_ctor_meta(tmpl_params, full_name, *ctor, ctor_idx);
+
+		ctors_member_str += fmt::format(
+			",\n"
+			"\t"	"\t"	"metapp::class_ctor_info<{0}, metapp::value<{1}>>",
+			full_name,
+			ctor_idx++
+		);
 	}
 
 	std::size_t attrib_idx = 0, method_idx = 0, member_idx = 0;

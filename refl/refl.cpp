@@ -63,6 +63,7 @@ namespace {
 		std::size_t size() const noexcept override{ return 0; }
 		std::size_t alignment() const noexcept override{ return 0; }
 		void destroy(void*) const noexcept override{}
+		void *construct(void *p, refl::args_pack_base *args) const override{ return nullptr; }
 	};
 
 	static refl::detail::int_info_helper_impl<std::int8_t> int8_refl;

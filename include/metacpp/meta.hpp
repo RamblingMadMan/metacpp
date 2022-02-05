@@ -851,7 +851,7 @@ namespace metapp{
 	}
 
 	template<typename Ent>
-	using param_types = typename detail::param_types_helper<typename Ent::params>::types;
+	using param_types = typename detail::param_types_helper<typename Ent::params>::type;
 
 	template<typename Class>
 	using bases = typename class_info<Class>::bases;

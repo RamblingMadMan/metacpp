@@ -74,6 +74,7 @@ namespace reflpp{
 		virtual std::size_t size() const noexcept = 0;
 		virtual void *arg(std::size_t idx) const noexcept = 0;
 		virtual type_info arg_type(std::size_t idx) const noexcept = 0;
+		virtual class_info this_type() const noexcept = 0;
 	};
 
 	template<typename ... Args>
@@ -87,6 +88,8 @@ namespace reflpp{
 			std::size_t size() const noexcept override{ return sizeof...(Args); }
 			void *arg(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_ptrs[idx]; }
 			type_info arg_type(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_types[idx]; }
+
+			class_info this_type() const noexcept override{ return reflect<args_pack<Args...>>(); }
 
 			template<typename Fn>
 			decltype(auto) apply(Fn &&f){
@@ -103,14 +106,19 @@ namespace reflpp{
 
 			template<typename Fn, std::size_t ... Is>
 			decltype(auto) apply_impl(Fn &&f, std::index_sequence<Is...>){
-				return std::forward<Fn>(f)(reinterpret_cast<metapp::get_t<value_types, Is>*>(m_ptrs[Is])...);
+				return std::forward<Fn>(f)(std::move(*reinterpret_cast<metapp::get_t<value_types, Is>*>(m_ptrs[Is]))...);
 			}
 
-			using value_types = metapp::types<Args...>;
-			std::tuple<Args...> m_vals;
+			using value_types = metapp::types<std::decay_t<Args>...>;
+			std::tuple<std::decay_t<Args>...> m_vals;
 			void *m_ptrs[sizeof...(Args)];
 			type_info m_types[sizeof...(Args)];
 	};
+
+	template<typename ... Args>
+	auto pack_args(Args &&... args){
+		return args_pack<std::decay_t<Args>...>(std::forward<Args>(args)...);
+	}
 
 	namespace detail{
 		struct type_info_helper{
@@ -118,7 +126,7 @@ namespace reflpp{
 			virtual std::size_t size() const noexcept = 0;
 			virtual std::size_t alignment() const noexcept = 0;
 			virtual void destroy(void *p) const noexcept = 0;
-			virtual void *construct(void *p, args_pack_base *args) const{ return nullptr; }
+			virtual void *construct(void *p, args_pack_base *args) const = 0;
 		};
 
 		template<typename T, typename Helper>
@@ -131,10 +139,18 @@ namespace reflpp{
 
 		struct ref_info_helper: type_info_helper{
 			virtual type_info refered() const noexcept = 0;
+			void *construct(void *p, args_pack_base *args) const override{
+				if(args->size() != 0) return nullptr;
+				return p;
+			}
 		};
 
 		struct ptr_info_helper: type_info_helper{
 			virtual type_info pointed() const noexcept = 0;
+			void *construct(void *p, args_pack_base *args) const override{
+				if(args->size() != 0) return nullptr;
+				return p;
+			}
 		};
 
 		type_info void_info() noexcept;
@@ -144,6 +160,10 @@ namespace reflpp{
 		struct num_info_helper: type_info_helper{
 			virtual bool is_floating_point() const noexcept = 0;
 			virtual bool is_integer() const noexcept = 0;
+			void *construct(void *p, args_pack_base *args) const override{
+				if(args->size() != 0) return nullptr;
+				return p;
+			}
 		};
 
 		struct int_info_helper: num_info_helper{
@@ -364,14 +384,25 @@ namespace reflpp{
 
 				metapp::for_all<metapp::ctors<T>>([&](auto info_type){
 					using ctor_info = metapp::get_t<decltype(info_type)>;
-					using param_types = metapp::param_types<ctor_info>;
-					using args_derived = metapp::instantiate<args_pack, param_types>;
 					if(ret) return;
-					auto args_ptr = dynamic_cast<args_derived*>(args);
-					if(!args_ptr) return;
-					args_ptr->apply([&](auto &&... args){
-						ret = new(p) T(std::forward<decltype(args)>(args)...);
-					});
+
+					if constexpr(ctor_info::params::size == 0){
+						if(args->size() != 0) return;
+						else ret = new(p) T();
+					}
+					else{
+						using param_types = metapp::param_types<ctor_info>;
+						using args_derived = metapp::instantiate<args_pack, param_types>;
+
+						auto args_ptr = dynamic_cast<args_derived*>(args);
+						if(!args_ptr){
+							return;
+						}
+
+						args_ptr->apply([&](auto &&... args){
+							ret = new(p) T(std::forward<decltype(args)>(args)...);
+						});
+					}
 				});
 
 				return ret;
@@ -417,6 +448,11 @@ namespace reflpp{
 
 				return ret;
 			}
+
+			void *construct(void *p, args_pack_base *args) const override{
+				if(args->size() != 0) return nullptr;
+				return p;
+			}
 		};
 
 		bool register_type(type_info info, bool overwrite = false);
@@ -435,6 +471,10 @@ namespace reflpp{
 						class_info base(std::size_t i) const noexcept override{ return nullptr; }
 
 						void *cast_to_base(void *self, std::size_t idx) const noexcept override{ return nullptr; }
+
+						void *construct(void *p, args_pack_base *args) const override{
+							return nullptr;
+						}
 					} static ret;
 					return &ret;
 				}
@@ -571,7 +611,9 @@ namespace reflpp{
 			}
 
 			template<typename ... Args>
-			explicit value(info_type type_, Args &&... args){
+			explicit value(info_type type_, Args &&... args)
+				: m_type(nullptr)
+			{
 				construct(type_, std::forward<Args>(args)...);
 			}
 
@@ -584,8 +626,7 @@ namespace reflpp{
 					std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
 				}
 				else{
-					m_storage.pointer = other.m_storage.pointer;
-					other.m_storage.pointer = nullptr;
+					m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);
 				}
 			}
 
@@ -605,8 +646,7 @@ namespace reflpp{
 						std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
 					}
 					else{
-						m_storage.pointer = other.m_storage.pointer;
-						other.m_storage.pointer = nullptr;
+						m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);
 					}
 				}
 
@@ -657,14 +697,19 @@ namespace reflpp{
 			void construct(info_type type_, Args &&... args){
 				destroy();
 
-				auto pack = args_pack(std::forward<Args>(args)...);
+				auto pack = pack_args(std::forward<Args>(args)...);
 
 				if(type_->size() <= 16 && type_->alignment() <= 16){
-					type_->construct(m_storage.bytes, &pack);
+					std::memset(m_storage.bytes, 0, type_->size());
+					if(!type_->construct(m_storage.bytes, &pack)){
+						throw std::runtime_error("Could not construct small value");
+					}
 				}
 				else{
 					m_storage.pointer = std::aligned_alloc(type_->alignment(), type_->size());
-					type_->construct(m_storage.pointer, &pack);
+					if(!type_->construct(m_storage.pointer, &pack)){
+						throw std::runtime_error("Could not construct value");
+					}
 				}
 
 				m_type = type_;

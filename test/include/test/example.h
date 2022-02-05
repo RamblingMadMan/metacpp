@@ -25,7 +25,17 @@ class [[my::attrib(1, "2", 3.0)]] example{
 };
 
 class example_test_derived: public TestTemplateClass<std::string_view>{
+	public:
+		explicit example_test_derived(int i)
+			: m_str(std::to_string(i))
+		{
+			set_value(m_str);
+		}
 
+		~example_test_derived(){}
+
+	private:
+		std::string m_str;
 };
 
 namespace ex{

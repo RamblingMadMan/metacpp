@@ -19,7 +19,6 @@ int main(int argc, char *argv[]){
 	auto plugs = plugin::nearby_plugins();
 
 	for(auto &&path : plugs){
-		fmt::print("Plugin '{}'\n", path.c_str());
 		plugin::load(path);
 	}
 
@@ -29,6 +28,17 @@ int main(int argc, char *argv[]){
 	auto instance = refl::value<TestTemplateClass<int>>(meta::type<example_helped_instance>{});
 
 	assert(instance.as<TestTemplateClass<int>>());
+
+	refl::class_info derived_test_cls;
+	assert(derived_test_cls = refl::reflect_class("example_test_derived"));
+	assert(derived_test_cls->size() == sizeof(example_test_derived));
+	assert(derived_test_cls->alignment() == alignof(example_test_derived));
+
+	{
+		auto derived_instance = refl::value<TestTemplateClass<std::string_view>>(derived_test_cls, (int)1);
+		assert(derived_instance.as<TestTemplateClass<std::string_view>>());
+		assert(derived_instance->value() == "1");
+	}
 
 	refl::class_info derived_cls;
 	assert(derived_cls = refl::reflect_class("TestDerived"));

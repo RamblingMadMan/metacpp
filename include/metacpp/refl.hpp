@@ -553,6 +553,8 @@ namespace reflpp{
 	template<typename Base = void>
 	class alignas(16) value{
 		public:
+			using info_type = std::conditional_t<std::is_same_v<Base, void>, type_info, class_info>;
+
 			value() = default;
 
 			template<typename T, typename ... Args>
@@ -569,7 +571,7 @@ namespace reflpp{
 			}
 
 			template<typename ... Args>
-			explicit value(type_info type_, Args &&... args){
+			explicit value(info_type type_, Args &&... args){
 				construct(type_, std::forward<Args>(args)...);
 			}
 
@@ -616,6 +618,8 @@ namespace reflpp{
 
 			bool is_valid() const noexcept{ return !!m_type; }
 
+			info_type type() const noexcept{ return m_type; }
+
 			template<typename T>
 			T *as() noexcept{
 				if(!is_valid()){
@@ -650,7 +654,7 @@ namespace reflpp{
 			}
 
 			template<typename ... Args>
-			void construct(type_info type_, Args &&... args){
+			void construct(info_type type_, Args &&... args){
 				destroy();
 
 				auto pack = args_pack(std::forward<Args>(args)...);
@@ -688,7 +692,7 @@ namespace reflpp{
 				}
 			}
 
-			std::conditional_t<std::is_same_v<Base, void>, type_info, class_info> m_type = nullptr;
+			info_type m_type = nullptr;
 
 			union storage_t{
 				void *pointer;

@@ -57,9 +57,20 @@ struct TestTemplateClass{
 	public:
 		using pointer = T*;
 
+		TestTemplateClass() = default;
+
+		template<typename U>
+		TestTemplateClass(U &&val) noexcept(noexcept(T(std::forward<U>(val))))
+			: m_value(std::forward<U>(val)){}
+
 		template<typename U>
 		void set_value(U &&v){
 			m_value = std::forward<U>(v);
+		}
+
+		template<typename U>
+		TestTemplateClass<U> rebind(U &&v){
+			return TestTemplateClass{std::forward<U>(v)};
 		}
 
 		const T &value() const noexcept{ return m_value; }
@@ -69,6 +80,9 @@ struct TestTemplateClass{
 	private:
 		T m_value;
 };
+
+template<typename T>
+TestTemplateClass(T&&) -> TestTemplateClass<std::decay_t<T>>;
 
 inline bool operator>(TestTemplateClass<int> a, TestTemplateClass<int> b){
 	return a.value() > b.value();

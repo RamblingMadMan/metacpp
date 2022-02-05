@@ -287,7 +287,7 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
+	std::optional<class_method_info> parse_class_method(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
 		if(c.kind() != CXCursor_CXXMethod){
 			return std::nullopt;
 		}
@@ -299,7 +299,7 @@ namespace astpp::detail{
 
 		class_method_info ret;
 
-		ret.ns = ns;
+		ret.ns = cls->ns;
 		ret.name = c.spelling();
 		ret.is_static = clang_CXXMethod_isStatic(c);
 		ret.is_const = clang_CXXMethod_isConst(c);
@@ -307,17 +307,63 @@ namespace astpp::detail{
 		ret.is_pure_virtual = clang_CXXMethod_isPureVirtual(c);
 		ret.is_defaulted = clang_CXXMethod_isDefaulted(c);
 
+		std::function<std::string(std::string_view)> replace_self_refs = [](std::string_view type_str){
+			return std::string(type_str);
+		};
+
+		if(!cls->template_params.empty()){
+			const std::string cls_name = cls->name.substr(2); // after global namespace ::
+			const std::string cls_name_opened = fmt::format("{}<", cls_name);
+
+			std::string full_name = "::" + cls_name_opened;
+
+			for(auto &&template_param : cls->template_params){
+				full_name += fmt::format("{}, ", template_param.name);
+			}
+
+			full_name.erase(full_name.size() - 2);
+			full_name.insert(full_name.end(), '>');
+
+			replace_self_refs = [cls_name, cls_name_opened, full_name](std::string_view type_str){
+				auto ret = std::string(type_str);
+				std::size_t name_pos = 0;
+
+				while(1){
+					name_pos = ret.find(cls_name, name_pos);
+					if(name_pos == std::string::npos) break;
+
+					auto opened_pos = ret.find(cls_name_opened);
+					if(opened_pos != name_pos){
+						ret.replace(name_pos, cls_name.size(), full_name);
+						name_pos += full_name.size();
+					}
+					else{
+						name_pos += cls_name_opened.size();
+					}
+				}
+
+				return ret;
+			};
+		}
+
+		ret.name = replace_self_refs(ret.name);
+
 		auto fn_type = c.type();
 
 		ret.is_noexcept =
 			clang_getExceptionSpecificationType(fn_type) == CXCursor_ExceptionSpecificationKind_BasicNoexcept;
 
-		auto fn_type_str = clang::detail::convert_str(clang_getTypeSpelling(fn_type));
+		auto fn_type_str = fn_type.spelling();
 
 		{
-			auto result_type = clang_getResultType(fn_type);
-			auto result_type_str = clang::detail::convert_str(clang_getTypeSpelling(result_type));
-			ret.result_type = std::move(result_type_str);
+			auto result_type = clang::type(clang_getResultType(fn_type));
+			auto result_type_str = result_type.spelling();
+
+			if(result_type.kind() == CXType_Typedef){
+				result_type_str = fmt::format("typename {}", result_type_str);
+			}
+
+			ret.result_type = replace_self_refs(result_type_str);
 		}
 
 		const int num_params = clang_Cursor_getNumArguments(c);
@@ -328,11 +374,17 @@ namespace astpp::detail{
 
 			for(int i = 0; i < num_params; i++){
 				clang::cursor param_cursor = clang_Cursor_getArgument(c, i);
+
 				auto param_name = param_cursor.spelling();
-				auto param_type = param_cursor.type().spelling();
+				auto param_type = param_cursor.type();
+				auto param_type_str = param_type.spelling();
+
+				if(param_type.kind() == CXType_Typedef){
+					param_type_str = fmt::format("typename {}", param_type_str);
+				}
 
 				ret.param_names.emplace_back(std::move(param_name));
-				ret.param_types.emplace_back(std::move(param_type));
+				ret.param_types.emplace_back(replace_self_refs(param_type_str));
 			}
 		}
 
@@ -540,23 +592,23 @@ namespace astpp::detail{
 			if(auto base_opt = parse_class_base(path, infos, inner, &ret); base_opt){
 				ret.bases.emplace_back(std::move(*base_opt));
 			}
-			else if(auto class_decl = detail::parse_class_decl(path, infos, inner, ns); class_decl){
+			else if(auto class_decl = parse_class_decl(path, infos, inner, ns); class_decl){
 				auto ptr = store_info(infos, std::move(*class_decl));
 				ret.classes[ptr->name] = ptr;
 			}
-			else if(auto ctor = detail::parse_class_ctor(path, infos, inner, ns); ctor){
+			else if(auto ctor = parse_class_ctor(path, infos, inner, ns); ctor){
 				auto ptr = store_info(infos, std::move(*ctor));
 				ret.ctors.emplace_back(ptr);
 			}
-			else if(auto dtor = detail::parse_class_dtor(path, infos, inner, ns); dtor){
+			else if(auto dtor = parse_class_dtor(path, infos, inner, ns); dtor){
 				auto ptr = store_info(infos, std::move(*dtor));
 				ret.dtor = ptr;
 			}
-			else if(auto method = detail::parse_class_method(path, infos, inner, ns); method){
+			else if(auto method = parse_class_method(path, infos, inner, &ret); method){
 				auto ptr = store_info(infos, std::move(*method));
 				ret.methods[ptr->name].emplace_back(ptr);
 			}
-			else if(auto member = detail::parse_class_member(path, infos, inner, ns); member){
+			else if(auto member = parse_class_member(path, infos, inner, ns); member){
 				ret.members.emplace_back(std::move(*member));
 			}
 

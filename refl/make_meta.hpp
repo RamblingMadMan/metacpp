@@ -170,17 +170,6 @@ std::string make_method_meta(
 		params_member_str += "\n\t";
 	}
 
-	std::string result_type = m.result_type;
-
-	auto short_res = result_type.find(short_name);
-	if(short_res != std::string::npos){
-		result_type.replace(
-			short_res, short_name.size(), full_name
-		);
-
-		result_type = fmt::format("typename {}", result_type);
-	}
-
 	return fmt::format(
 		"{7}"
 		"template<{11}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
@@ -197,13 +186,13 @@ std::string make_method_meta(
 		full_name,
 		idx,
 		m.name,
-		result_type,
+		m.result_type,
 		param_types_str,
 		m.param_types.size(),
 		m.is_const ? " const" : "",
 		param_metas_str,
 		params_member_str,
-		result_type,
+		m.result_type,
 		param_names_member_str,
 		tmpl_params
 	);

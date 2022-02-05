@@ -34,13 +34,21 @@ namespace ex{
 		class helper;
 
 		template<typename ... Ts>
-		class helper<meta::types<Ts...>>: public TestTemplateClass<Ts>...{
+		class helper<meta::types<Ts...>>: public TestTemplateClass<Ts>...{};
 
+		template<typename Ts>
+		class helper_helper: public ex::detail::helper<Ts>{
+			template<typename ... Us>
+			ex::detail::helper<meta::types<Us...>> rebind(){
+				return {};
+			}
+
+			ex::detail::helper<Ts> &self(){ return *this; }
 		};
 	}
 
 	template<typename ... Ts>
-	class example_test_helped: public ex::detail::helper<meta::types<Ts...>>{
+	class example_test_helped: public ex::detail::helper_helper<meta::types<Ts...>>{
 
 	};
 }

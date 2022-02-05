@@ -665,10 +665,6 @@ namespace astpp::detail{
 			if(!specialization_params.empty()){
 				specialization_params.erase(specialization_params.size() - 2);
 			}
-
-			std::string full_name = fmt::format("{}<{}>", ret.name, specialization_params);
-
-			print_parse_error(path, "Name: {}, Type: {}\n", full_name, class_type_str);
 		}
 
 		return ret;

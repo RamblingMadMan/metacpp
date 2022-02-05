@@ -80,7 +80,7 @@ std::string make_ctor_meta(
 
 		params_member_str += fmt::format(
 			",\n"
-			"\t"	"\t"	"metapp::param_info<metapp::class_ctor_info<{0}, {1}>, {2}>",
+			"\t"	"\t"	"metapp::param_info<metapp::class_ctor_info<{0}, metapp::value<{1}>>, metapp::value<{2}>>",
 			full_name, idx, param_idx
 		);
 
@@ -91,7 +91,7 @@ std::string make_ctor_meta(
 			"}};\n"
 			"\n",
 			tmpl_params,
-			fmt::format("metapp::class_ctor_info<{}, {}>", full_name, idx),
+			fmt::format("metapp::class_ctor_info<{}, metapp::value<{}>>", full_name, idx),
 			param_idx,
 			param_type,
 			param_name

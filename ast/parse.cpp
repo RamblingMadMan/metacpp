@@ -375,7 +375,12 @@ namespace astpp::detail{
 			std::string full_name = "::" + cls_name_opened;
 
 			for(auto &&template_param : cls->template_params){
-				full_name += fmt::format("{}, ", template_param.name);
+				if(template_param.is_variadic){
+					full_name += fmt::format("{}..., ", template_param.name);
+				}
+				else{
+					full_name += fmt::format("{}, ", template_param.name);
+				}
 			}
 
 			full_name.erase(full_name.size() - 2);

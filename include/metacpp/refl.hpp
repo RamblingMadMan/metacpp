@@ -311,7 +311,6 @@ namespace reflpp{
 				metapp::for_all_i<typename enum_meta::values>([idx, &ret](auto info_type, auto info_idx){
 					if(idx != info_idx) return;
 
-					using info = metapp::get_t<decltype(info_type)>;
 					static const enum_value_impl<T, metapp::get_v<decltype(info_idx)>> reflected;
 					ret = &reflected;
 				});

@@ -36,6 +36,12 @@ target_compile_features(ast-test PRIVATE cxx_std_20)
 target_compile_features(meta-example PRIVATE cxx_std_20)
 target_compile_features(loader-test PRIVATE cxx_std_20)
 
+target_compile_options(ast-test PRIVATE "-Wall")
+target_compile_options(meta-example PRIVATE "-Wall")
+target_compile_options(loader-test PRIVATE "-Wall")
+target_compile_options(plugin-test PRIVATE "-Wall")
+target_compile_options(plugin-test-other PRIVATE "-Wall")
+
 set_target_properties(
 	ast-test meta-example loader-test PROPERTIES
 	CXX_STANDARD 20

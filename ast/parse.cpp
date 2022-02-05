@@ -205,7 +205,7 @@ namespace astpp::detail{
 		return parse_attribs(path, infos, toks_begin, toks.end());
 	}
 
-	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
+	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
 		if(c.kind() != CXCursor_Constructor){
 			return std::nullopt;
 		}
@@ -217,7 +217,7 @@ namespace astpp::detail{
 
 		class_constructor_info ret;
 
-		ret.ns = ns;
+		ret.ns = cls->ns;
 
 		if(clang_CXXConstructor_isMoveConstructor(c)){
 			ret.constructor_kind = constructor_kind::move;
@@ -235,6 +235,45 @@ namespace astpp::detail{
 			ret.constructor_kind = constructor_kind::generic;
 		}
 
+		std::function<std::string(std::string_view)> replace_self_refs = [](std::string_view type_str){
+			return std::string(type_str);
+		};
+
+		if(!cls->template_params.empty()){
+			const std::string cls_name = cls->name.substr(2); // after global namespace ::
+			const std::string cls_name_opened = fmt::format("{}<", cls_name);
+
+			std::string full_name = "::" + cls_name_opened;
+
+			for(auto &&template_param : cls->template_params){
+				full_name += fmt::format("{}, ", template_param.name);
+			}
+
+			full_name.erase(full_name.size() - 2);
+			full_name.insert(full_name.end(), '>');
+
+			replace_self_refs = [cls_name, cls_name_opened, full_name](std::string_view type_str){
+				auto ret = std::string(type_str);
+				std::size_t name_pos = 0;
+
+				while(1){
+					name_pos = ret.find(cls_name, name_pos);
+					if(name_pos == std::string::npos) break;
+
+					auto opened_pos = ret.find(cls_name_opened);
+					if(opened_pos != name_pos){
+						ret.replace(name_pos, cls_name.size(), full_name);
+						name_pos += full_name.size();
+					}
+					else{
+						name_pos += cls_name_opened.size();
+					}
+				}
+
+				return ret;
+			};
+		}
+
 		int num_params = clang_Cursor_getNumArguments(c);
 
 		if(num_params > 0){
@@ -242,14 +281,13 @@ namespace astpp::detail{
 			ret.param_types.reserve(num_params);
 
 			for(int i = 0; i < num_params; i++){
-				auto arg_cursor = clang_Cursor_getArgument(c, i);
-				auto arg_type = clang_getCursorType(arg_cursor);
+				clang::cursor arg_cursor = clang_Cursor_getArgument(c, i);
+				clang::type arg_type = clang_getCursorType(arg_cursor);
 
-				auto arg_name = clang::detail::convert_str(clang_getCursorSpelling(arg_cursor));
-				auto arg_type_name = clang::detail::convert_str(clang_getTypeSpelling(arg_type));
+				auto arg_type_name = arg_type.spelling();
 
-				ret.param_names.emplace_back(std::move(arg_name));
-				ret.param_types.emplace_back(std::move(arg_type_name));
+				ret.param_names.emplace_back(arg_cursor.spelling());
+				ret.param_types.emplace_back(replace_self_refs(arg_type_name));
 			}
 		}
 
@@ -268,7 +306,26 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
+	std::string resolve_namespaces(clang::cursor c){
+		std::string ret;
+
+		while(1){
+			clang::cursor parent = clang_getCursorSemanticParent(c);
+			if(clang_isInvalid(parent.kind()) || clang_isTranslationUnit(parent.kind())){
+				break;
+			}
+			else if(parent.kind() == CXCursor_ClassDecl || parent.kind() == CXCursor_Namespace){
+				auto ns_str = fmt::format("::{}", parent.spelling());
+				ret.insert(ret.begin(), ns_str.begin(), ns_str.end());
+			}
+
+			c = parent;
+		}
+
+		return ret;
+	}
+
+	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
 		if(c.kind() != CXCursor_FieldDecl){
 			return std::nullopt;
 		}
@@ -280,7 +337,7 @@ namespace astpp::detail{
 
 		class_member_info ret;
 
-		ret.ns = ns;
+		ret.ns = cls->ns;
 		ret.name = c.spelling();
 		ret.type = c.type().spelling();
 
@@ -391,53 +448,6 @@ namespace astpp::detail{
 		return ret;
 	}
 
-	std::vector<std::string> parse_specialization_args(const fs::path &path, clang::token_iterator begin, clang::token_iterator end){
-		std::vector<std::string> ret;
-
-		while(begin != end && (begin->str() == "::" || begin->kind() == CXToken_Identifier)){
-			++begin;
-		}
-
-		if(begin == end) return ret;
-
-		if(begin->str() != "<"){
-			print_parse_error(path, "Internal: expected '<' in specialization tokens");
-			return ret;
-		}
-
-		++begin; // skip opening angle bracket
-
-		auto it = begin;
-
-		int bracket_depth = 0;
-
-		std::string arg_str;
-
-		while(it != end){
-			if(it->str() == "," && bracket_depth == 0){
-				if(!arg_str.empty()){
-					ret.emplace_back(std::move(arg_str));
-					arg_str = "";
-				}
-				++it;
-				continue;
-			}
-			else if(it->str() == "<"){
-				++bracket_depth;
-			}
-			else if(it->str() == ">"){
-				if(--bracket_depth == 0){
-					break;
-				}
-			}
-
-			arg_str += it->str();
-			++it;
-		}
-
-		return ret;
-	}
-
 	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns);
 
 	std::optional<class_base_info> parse_class_base(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
@@ -498,25 +508,6 @@ namespace astpp::detail{
 		}
 
 		return base;
-	}
-
-	std::string resolve_namespaces(clang::cursor c){
-		std::string ret;
-
-		while(1){
-			clang::cursor parent = clang_getCursorSemanticParent(c);
-			if(clang_isInvalid(parent.kind()) || clang_isTranslationUnit(parent.kind())){
-				break;
-			}
-			else if(parent.kind() == CXCursor_ClassDecl || parent.kind() == CXCursor_Namespace){
-				auto ns_str = fmt::format("::{}", parent.spelling());
-				ret.insert(ret.begin(), ns_str.begin(), ns_str.end());
-			}
-
-			c = parent;
-		}
-
-		return ret;
 	}
 
 	std::optional<class_info> parse_class_decl(
@@ -614,7 +605,7 @@ namespace astpp::detail{
 				auto ptr = store_info(infos, std::move(*class_decl));
 				ret.classes[ptr->name] = ptr;
 			}
-			else if(auto ctor = parse_class_ctor(path, infos, inner, ns); ctor){
+			else if(auto ctor = parse_class_ctor(path, infos, inner, &ret); ctor){
 				auto ptr = store_info(infos, std::move(*ctor));
 				ret.ctors.emplace_back(ptr);
 			}
@@ -626,7 +617,7 @@ namespace astpp::detail{
 				auto ptr = store_info(infos, std::move(*method));
 				ret.methods[ptr->name].emplace_back(ptr);
 			}
-			else if(auto member = parse_class_member(path, infos, inner, ns); member){
+			else if(auto member = parse_class_member(path, infos, inner, &ret); member){
 				ret.members.emplace_back(std::move(*member));
 			}
 

@@ -190,10 +190,10 @@ namespace astpp{
 		bool is_specialization = false;
 
 		std::vector<class_base_info> bases;
-		std::unordered_map<std::string, std::vector<const class_method_info*>> methods;
+		std::unordered_map<std::string, std::vector<class_method_info*>> methods;
 		std::vector<class_member_info> members;
-		std::unordered_map<std::string, const class_info*> classes;
-		std::vector<const class_constructor_info*> ctors;
+		std::unordered_map<std::string, class_info*> classes;
+		std::vector<class_constructor_info*> ctors;
 		std::vector<template_param_info> template_params;
 		std::vector<std::string> template_args;
 		const class_destructor_info *dtor = nullptr;

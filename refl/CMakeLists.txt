@@ -102,6 +102,8 @@ function(target_reflect tgt)
 	set(OUTPUT_HEADERS "")
 	set(OUTPUT_SOURCES "")
 
+	file(MAKE_DIRECTORY ${OUTPUT_DIR})
+
 	foreach(SRC IN LISTS TGT_SOURCES)
 		cmake_path(GET SRC EXTENSION TGT_SRC_EXT)
 		if(TGT_SRC_EXT MATCHES "(\\.hpp)|(\\.h)")

@@ -220,7 +220,21 @@ namespace reflpp{
 		struct class_info_impl: info_helper_base<T, class_info_helper>{
 			using class_meta = metapp::class_info<T>;
 
-			class_info_impl(){ register_type(this, true); }
+			std::size_t m_num_bases = 0;
+
+			class_info_impl(){
+				metapp::for_all<metapp::bases<T>>([&](auto base_info){
+					using info = metapp::get_t<decltype(base_info)>;
+					if constexpr(info::is_variadic){
+						m_num_bases += info::type::size;
+					}
+					else{
+						++m_num_bases;
+					}
+				});
+
+				register_type(this, true);
+			}
 
 			std::size_t num_methods() const noexcept override{ return class_meta::methods::size; }
 
@@ -239,19 +253,32 @@ namespace reflpp{
 				return ret;
 			}
 
-			std::size_t num_bases() const noexcept override{ return class_meta::bases::size; }
+			std::size_t num_bases() const noexcept override{ return m_num_bases; }
 
 			class_info base(std::size_t idx) const noexcept override{
 				if(idx >= num_bases()) return nullptr;
 
 				class_info ret = nullptr;
 
-				metapp::for_all_i<metapp::bases<T>>([idx, &ret](auto base_info, auto base_idx){
-					if(idx != base_idx) return;
+				std::size_t cur_idx = 0;
 
+				metapp::for_all<metapp::bases<T>>([idx, &cur_idx, &ret](auto base_info){
 					using info = metapp::get_t<decltype(base_info)>;
 
-					ret = reflect<typename info::type>();
+					if constexpr(info::is_variadic){
+						metapp::for_all<typename info::type>([idx, &cur_idx, &ret](auto inner_info){
+							using info_inner = metapp::get_t<decltype(inner_info)>;
+
+							if(idx == cur_idx++){
+								ret = reflect<typename info_inner::type>();
+							}
+						});
+					}
+					else{
+						if(idx == cur_idx++){
+							ret = reflect<typename info::type>();
+						}
+					}
 				});
 
 				return ret;
@@ -264,13 +291,32 @@ namespace reflpp{
 
 				auto self = reinterpret_cast<T*>(self_void);
 
-				metapp::for_all_i<metapp::bases<T>>([self, idx, &ret](auto base_info, auto base_idx){
-					if(idx != base_idx) return;
+				std::size_t cur_idx = 0;
 
+				metapp::for_all<metapp::bases<T>>([idx, self, &cur_idx, &ret](auto base_info){
 					using info = metapp::get_t<decltype(base_info)>;
 
-					if constexpr(info::access == metapp::access_kind::public_){
-						ret = static_cast<typename info::type*>(self);
+					if constexpr(info::is_variadic){
+						metapp::for_all<typename info::type>([idx, self, &cur_idx, &ret](auto inner_info){
+							using info_inner = metapp::get_t<decltype(inner_info)>;
+
+							if(idx != cur_idx++){
+								return;
+							}
+
+							if constexpr(info_inner::access == metapp::access_kind::public_){
+								ret = static_cast<typename info::type*>(self);
+							}
+						});
+					}
+					else{
+						if(idx != cur_idx++){
+							return;
+						}
+
+						if constexpr(info::access == metapp::access_kind::public_){
+							ret = static_cast<typename info::type*>(self);
+						}
 					}
 				});
 

@@ -596,6 +596,7 @@ namespace metapp{
 	struct class_base_info{
 		using type = typename detail::class_base_info_data<Class, get_v<Idx>>::type;
 
+		static constexpr bool is_variadic = detail::class_base_info_data<Class, get_v<Idx>>::is_variadic;
 		static constexpr access_kind access = detail::class_base_info_data<Class, get_v<Idx>>::access;
 	};
 

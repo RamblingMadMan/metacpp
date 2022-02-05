@@ -75,7 +75,7 @@ std::string make_function_refl(const ast::function_info &fn){
 	);
 }
 
-std::string make_namespace_refl(const ast::namespace_info &ns){
+std::string make_namespace_refl(const ast::namespace_info &ns, std::string &ctor_calls){
 	std::string output;
 
 	for(auto &&fns : ns.functions){
@@ -93,6 +93,11 @@ std::string make_namespace_refl(const ast::namespace_info &ns){
 			"\n",
 			enm.second->name
 		);
+
+		ctor_calls += fmt::format(
+			"\t"	"reflpp::detail::type_export<{}>();\n",
+			enm.second->name
+		);
 	}
 
 	for(auto &&cls : ns.classes){
@@ -106,10 +111,15 @@ std::string make_namespace_refl(const ast::namespace_info &ns){
 			"\n",
 			cls.second->name
 		);
+
+		ctor_calls += fmt::format(
+			"\t"	"reflpp::detail::type_export<{}>();\n",
+			cls.second->name
+		);
 	}
 
 	for(auto &&inner : ns.namespaces){
-		output += make_namespace_refl(*inner.second);
+		output += make_namespace_refl(*inner.second, ctor_calls);
 	}
 
 	return output;
@@ -226,14 +236,23 @@ int main(int argc, char *argv[]){
 		auto out_source_path = file_output_dir / header_file;
 		out_source_path += ".refl.cpp";
 
+		std::string ctor_calls;
+		auto namespace_refl = make_namespace_refl(info.global, ctor_calls);
+
 		std::string out_source = fmt::format(
 			"#define REFLCPP_IMPLEMENTATION\n"
 			"#include \"{}\"\n"
 			"#include \"metacpp/refl.hpp\"\n"
 			"\n"
-			"{}",
+			"{}"
+			"\n"
+			"__attribute__((constructor))\n"
+			"static void reflpp_load_type_info(){{\n"
+					"{}"
+			"}}",
 			fs::absolute(out_header_path).string(),
-			make_namespace_refl(info.global)
+			namespace_refl,
+			ctor_calls
 		);
 
 		std::string out_header = fmt::format(
@@ -248,7 +267,7 @@ int main(int argc, char *argv[]){
 		);
 
 		auto out_header_dir = out_source_path.parent_path();
-		if(!fs::exists(out_header_dir) && !fs::create_directory(out_header_dir)){
+		if(!fs::exists(out_header_dir) && !fs::create_directories(out_header_dir)){
 			fmt::print(stderr, "could not create directory '{}'\n", out_header_dir.c_str());
 			return EXIT_FAILURE;
 		}

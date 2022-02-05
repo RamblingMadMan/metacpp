@@ -70,19 +70,47 @@ std::string make_ctor_meta(
 	const ast::class_constructor_info &ctor,
 	std::size_t idx
 ){
-	std::string param_types_str;
+	std::string output, param_types_str, params_member_str;
 
+	std::size_t param_idx = 0;
 	for(auto &&param_type : ctor.param_types){
-		param_types_str += param_type;
-		param_types_str += ", ";
+		auto &&param_name = ctor.param_names[param_idx];
+
+		param_types_str += fmt::format("{}, ", param_type);
+
+		params_member_str += fmt::format(
+			",\n"
+			"\t"	"\t"	"metapp::param_info<metapp::class_ctor_info<{0}, {1}>, {2}>",
+			full_name, idx, param_idx
+		);
+
+		output += fmt::format(
+			"template<{0}> struct metapp::detail::param_info_data<{1}, {2}>{{\n"
+			"\t"	"using type = {3};\n"
+			"\t"	"static constexpr std::string_view name = \"{4}\";\n"
+			"}};\n"
+			"\n",
+			tmpl_params,
+			fmt::format("metapp::class_ctor_info<{}, {}>", full_name, idx),
+			param_idx,
+			param_type,
+			param_name
+		);
+
+		++param_idx;
 	}
 
 	if(!param_types_str.empty()){
 		param_types_str.erase(param_types_str.size() - 2);
+
+		params_member_str.erase(0, 1);
+		params_member_str += "\n\t";
 	}
 
 	return fmt::format(
+		"{8}"
 		"template<{6}> struct metapp::detail::class_ctor_info_data<{0}, {1}>{{\n"
+		"\t"	"using params = metapp::types<{7}>;\n"
 		"\t"	"static constexpr std::size_t num_params = {2};\n"
 		"\t"	"static constexpr bool is_move_ctor = {3};\n"
 		"\t"	"static constexpr bool is_copy_ctor = {4};\n"
@@ -94,7 +122,9 @@ std::string make_ctor_meta(
 		ctor.constructor_kind == ast::constructor_kind::move,
 		ctor.constructor_kind == ast::constructor_kind::copy,
 		ctor.constructor_kind == ast::constructor_kind::default_,
-		tmpl_params
+		tmpl_params,
+		params_member_str,
+		output
 	);
 }
 
@@ -159,12 +189,9 @@ std::string make_method_meta(
 
 	return fmt::format(
 		"{7}"
-		"template<{11}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
+		"template<{10}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
 		"\t"	"using ptr_type = {3}({0}::*)({4}){6};\n"
 		"\t"	"using result = {9};\n"
-		"#if __cplusplus >= 202002L\n"
-		"\t"	"using param_names = metapp::values<{10}>;\n"
-		"#endif\n"
 		"\t"	"using param_types = metapp::types<{4}>;\n"
 		"\t"	"using params = metapp::types<{8}>;\n"
 		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
@@ -180,7 +207,6 @@ std::string make_method_meta(
 		param_metas_str,
 		params_member_str,
 		m.result_type,
-		param_names_member_str,
 		tmpl_params
 	);
 }
@@ -218,11 +244,24 @@ std::string make_class_meta(const ast::class_info &cls){
 		);
 	}
 
-	std::string full_name = cls.name;
-
 	if(!tmpl_param_names.empty()){
 		tmpl_param_names.erase(0, 2);
 		tmpl_params.erase(0, 2);
+	}
+
+	std::string full_name = cls.name;
+
+	if(cls.is_specialization){
+		std::string spec_args;
+		for(auto &&arg : cls.template_args){
+			spec_args += fmt::format("{}, ", arg);
+		}
+		if(!spec_args.empty()){
+			spec_args.erase(spec_args.end() - 2);
+		}
+		full_name += fmt::format("<{}>", spec_args);
+	}
+	else if(!tmpl_param_names.empty()){
 		full_name += fmt::format("<{}>", tmpl_param_names);
 	}
 

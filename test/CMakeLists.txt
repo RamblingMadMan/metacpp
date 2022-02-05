@@ -51,8 +51,8 @@ set_target_properties(
 target_include_directories(loader-test PRIVATE include)
 
 target_link_libraries(ast-test PUBLIC metacpp::ast metacpp::refl)
-target_link_libraries(loader-test PRIVATE fmt::fmt-header-only)
-target_link_plugins(loader-test plugin-test plugin-test-other)
+target_link_libraries(loader-test PRIVATE fmt::fmt-header-only plugin-test)
+target_link_plugins(loader-test plugin-test-other)
 
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(

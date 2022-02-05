@@ -88,6 +88,11 @@ namespace reflpp{
 			void *arg(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_ptrs[idx]; }
 			type_info arg_type(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_types[idx]; }
 
+			template<typename Fn>
+			decltype(auto) apply(Fn &&f){
+				return apply_impl(std::forward<Fn>(f), std::make_index_sequence<sizeof...(Args)>());
+			}
+
 		private:
 			template<std::size_t ... Is, typename ... UArgs>
 			args_pack(std::index_sequence<Is...>, UArgs &&... args)
@@ -96,6 +101,12 @@ namespace reflpp{
 				, m_types{ reflect<std::tuple_element_t<Is, decltype(m_vals)>>()... }
 			{}
 
+			template<typename Fn, std::size_t ... Is>
+			decltype(auto) apply_impl(Fn &&f, std::index_sequence<Is...>){
+				return std::forward<Fn>(f)(reinterpret_cast<metapp::get_t<value_types, Is>*>(m_ptrs[Is])...);
+			}
+
+			using value_types = metapp::types<Args...>;
 			std::tuple<Args...> m_vals;
 			void *m_ptrs[sizeof...(Args)];
 			type_info m_types[sizeof...(Args)];
@@ -107,6 +118,7 @@ namespace reflpp{
 			virtual std::size_t size() const noexcept = 0;
 			virtual std::size_t alignment() const noexcept = 0;
 			virtual void destroy(void *p) const noexcept = 0;
+			virtual void *construct(void *p, args_pack_base *args) const{ return nullptr; }
 		};
 
 		template<typename T, typename Helper>
@@ -214,6 +226,29 @@ namespace reflpp{
 			virtual class_info base(std::size_t i) const noexcept = 0;
 
 			virtual void *cast_to_base(void *self, std::size_t idx) const noexcept = 0;
+
+			template<typename T>
+			T *cast_to(void *self_void, const class_info to = reflect<T>()) const noexcept{
+				if(this == to){
+					return reinterpret_cast<T*>(self_void);
+				}
+
+				const auto num_bases_ = num_bases();
+
+				for(std::size_t i = 0; i < num_bases_; i++){
+					auto base_ = base(i);
+					auto as_base = cast_to_base(self_void, i);
+					if(base_ == to){
+						return reinterpret_cast<T*>(as_base);
+					}
+					else{
+						auto as_inner_base = base_->cast_to<T>(as_base, to);
+						if(as_inner_base) return as_inner_base;
+					}
+				}
+
+				return nullptr;
+			}
 		};
 
 		template<typename T>
@@ -270,7 +305,7 @@ namespace reflpp{
 							using info_inner = metapp::get_t<decltype(inner_info)>;
 
 							if(idx == cur_idx++){
-								ret = reflect<typename info_inner::type>();
+								ret = reflect<info_inner>();
 							}
 						});
 					}
@@ -296,28 +331,47 @@ namespace reflpp{
 				metapp::for_all<metapp::bases<T>>([idx, self, &cur_idx, &ret](auto base_info){
 					using info = metapp::get_t<decltype(base_info)>;
 
-					if constexpr(info::is_variadic){
-						metapp::for_all<typename info::type>([idx, self, &cur_idx, &ret](auto inner_info){
-							using info_inner = metapp::get_t<decltype(inner_info)>;
+					if constexpr(info::access != metapp::access_kind::public_){
+						return;
+					}
+					else{
+						if constexpr(info::is_variadic){
+							metapp::for_all<typename info::type>([idx, self, &cur_idx, &ret](auto inner_info){
+								using info_inner = metapp::get_t<decltype(inner_info)>;
 
+								if(idx != cur_idx++){
+									return;
+								}
+
+								ret = static_cast<info_inner*>(self);
+							});
+						}
+						else{
 							if(idx != cur_idx++){
 								return;
 							}
 
-							if constexpr(info_inner::access == metapp::access_kind::public_){
-								ret = static_cast<typename info::type*>(self);
-							}
-						});
-					}
-					else{
-						if(idx != cur_idx++){
-							return;
-						}
-
-						if constexpr(info::access == metapp::access_kind::public_){
 							ret = static_cast<typename info::type*>(self);
 						}
 					}
+				});
+
+				return ret;
+			}
+
+			void *construct(void *p, args_pack_base *args) const override{
+				void *ret = nullptr;
+
+				metapp::for_all<metapp::ctors<T>>([&](auto info_type){
+					using ctor_info = metapp::get_t<decltype(info_type)>;
+					using param_types = metapp::param_types<ctor_info>;
+					using args_derived = metapp::instantiate<args_pack, param_types>;
+					if(ret) return;
+					auto args_ptr = dynamic_cast<args_derived*>(args);
+					if(!args_ptr) return;
+					args_ptr->apply([&](auto &&... args){
+						ret = new(p) T(std::forward<decltype(args)>(args)...);
+					});
 				});
 
 				return ret;
@@ -496,6 +550,7 @@ namespace reflpp{
 		using function_export_fn = function_info(*)();
 	}
 
+	template<typename Base = void>
 	class alignas(16) value{
 		public:
 			value() = default;
@@ -511,6 +566,11 @@ namespace reflpp{
 					m_storage.pointer = std::aligned_alloc(alignof(T), sizeof(T));
 					new(m_storage.pointer) T(std::forward<Args>(args)...);
 				}
+			}
+
+			template<typename ... Args>
+			explicit value(type_info type_, Args &&... args){
+				construct(type_, std::forward<Args>(args)...);
 			}
 
 			value(const value&) = delete;
@@ -551,26 +611,27 @@ namespace reflpp{
 				return *this;
 			}
 
+			Base *operator->() noexcept{ return as<Base>(); }
+			const Base *operator->() const noexcept{ return as<Base>(); }
+
 			bool is_valid() const noexcept{ return !!m_type; }
 
 			template<typename T>
 			T *as() noexcept{
-				if(!is_valid() || m_type != reflect<T>()){
+				if(!is_valid()){
 					return nullptr;
 				}
-				else{
-					return reinterpret_cast<T*>(m_storage.pointer);
-				}
+
+				return m_type->template cast_to<T>(ptr());
 			}
 
 			template<typename T>
 			const T *as() const noexcept{
-				if(!is_valid() || m_type != reflect<T>()){
+				if(!is_valid()){
 					return nullptr;
 				}
-				else{
-					return reinterpret_cast<const T*>(m_storage.pointer);
-				}
+
+				return m_type->template cast_to<T>(ptr());
 			}
 
 		private:
@@ -588,7 +649,46 @@ namespace reflpp{
 				m_type = nullptr;
 			}
 
-			type_info m_type = nullptr;
+			template<typename ... Args>
+			void construct(type_info type_, Args &&... args){
+				destroy();
+
+				auto pack = args_pack(std::forward<Args>(args)...);
+
+				if(type_->size() <= 16 && type_->alignment() <= 16){
+					type_->construct(m_storage.bytes, &pack);
+				}
+				else{
+					m_storage.pointer = std::aligned_alloc(type_->alignment(), type_->size());
+					type_->construct(m_storage.pointer, &pack);
+				}
+
+				m_type = type_;
+			}
+
+			void *ptr() noexcept{
+				if(!m_type) return nullptr;
+
+				if(m_type->size() <= 16 && m_type->alignment() <= 16){
+					return m_storage.bytes;
+				}
+				else{
+					return m_storage.pointer;
+				}
+			}
+
+			const void *ptr() const noexcept{
+				if(!m_type) return nullptr;
+
+				if(m_type->size() <= 16 && m_type->alignment() <= 16){
+					return m_storage.bytes;
+				}
+				else{
+					return m_storage.pointer;
+				}
+			}
+
+			std::conditional_t<std::is_same_v<Base, void>, type_info, class_info> m_type = nullptr;
 
 			union storage_t{
 				void *pointer;

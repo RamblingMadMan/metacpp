@@ -16,7 +16,7 @@
 #include <filesystem>
 
 namespace pluginpp{
-	class function_info{
+	struct function_info{
 		std::string_view name;
 		reflpp::type_info result_type;
 		std::vector<reflpp::type_info> param_types;

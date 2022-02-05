@@ -500,8 +500,32 @@ namespace astpp::detail{
 		return base;
 	}
 
-	std::optional<class_info> parse_class_decl(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns){
-		const bool is_template = c.kind() == CXCursor_ClassTemplate;
+	std::string resolve_namespaces(clang::cursor c){
+		std::string ret;
+
+		while(1){
+			clang::cursor parent = clang_getCursorSemanticParent(c);
+			if(clang_isInvalid(parent.kind()) || clang_isTranslationUnit(parent.kind())){
+				break;
+			}
+			else if(parent.kind() == CXCursor_ClassDecl || parent.kind() == CXCursor_Namespace){
+				auto ns_str = fmt::format("::{}", parent.spelling());
+				ret.insert(ret.begin(), ns_str.begin(), ns_str.end());
+			}
+
+			c = parent;
+		}
+
+		return ret;
+	}
+
+	std::optional<class_info> parse_class_decl(
+		const fs::path &path, info_map &infos,
+		clang::cursor c, namespace_info *ns
+	){
+		const bool is_template =
+			c.kind() == CXCursor_ClassTemplate ||
+			c.kind() == CXCursor_ClassTemplatePartialSpecialization;
 
 		if(!is_template && c.kind() != CXCursor_ClassDecl){
 			return std::nullopt;
@@ -512,16 +536,9 @@ namespace astpp::detail{
 			return std::nullopt;
 		}
 
-		clang::cursor def_cursor = clang_getCursorDefinition(c);
-		if(clang_isInvalid(def_cursor.kind())){
-			print_parse_error(path, "could not get definition for base class '{}'", c.spelling());
-			return std::nullopt;
-		}
-
-		c = def_cursor;
-
 		auto class_name = c.spelling();
-		auto class_type = c.type().spelling();
+		auto class_type = c.type();
+		auto class_type_str = class_type.spelling();
 
 		class_info ret;
 
@@ -538,6 +555,7 @@ namespace astpp::detail{
 		ret.name = ns->name + "::" + class_name;
 		ret.is_abstract = clang_CXXRecord_isAbstract(c);
 		ret.is_template = is_template;
+		ret.is_specialization = c.kind() == CXCursor_ClassTemplatePartialSpecialization;
 
 		std::size_t ctor_idx = 0, member_idx = 0, method_idx = 0;
 
@@ -616,6 +634,42 @@ namespace astpp::detail{
 
 			// skip anything else
 		});
+
+		if(ret.is_specialization){
+			auto num_spec_params = clang_Type_getNumTemplateArguments(class_type);
+			for(int i = 0; i < num_spec_params; i++){
+				clang::type spec_param_type = clang_Type_getTemplateArgumentAsType(class_type, i);
+				clang::cursor spec_param_decl = clang_getTypeDeclaration(spec_param_type);
+				const auto namespaces = resolve_namespaces(spec_param_decl);
+				ret.template_args.emplace_back(fmt::format("{}::{}", namespaces, spec_param_type.spelling()));
+			}
+
+			std::size_t tmpl_param_idx = 0;
+			for(const auto &template_param : ret.template_params){
+				const auto param_alias = fmt::format("type-parameter-0-{}", tmpl_param_idx++);
+				for(std::string &template_arg : ret.template_args){
+					auto alias_pos = template_arg.find(param_alias);
+					while(alias_pos != std::string::npos){
+						template_arg.replace(alias_pos, param_alias.size(), template_param.name);
+						alias_pos = template_arg.find(param_alias);
+					}
+				}
+			}
+
+			std::string specialization_params;
+
+			for(auto &&template_arg : ret.template_args){
+				specialization_params += fmt::format("{}, ", template_arg);
+			}
+
+			if(!specialization_params.empty()){
+				specialization_params.erase(specialization_params.size() - 2);
+			}
+
+			std::string full_name = fmt::format("{}<{}>", ret.name, specialization_params);
+
+			print_parse_error(path, "Name: {}, Type: {}\n", full_name, class_type_str);
+		}
 
 		return ret;
 	}
@@ -852,6 +906,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 
 	auto include_dirs = info.all_include_dirs();
 	auto options = info.file_options(path);
+
+	options.emplace_back("-DMETACPP_TOOL_RUN");
 
 	bool standard_given = false;
 

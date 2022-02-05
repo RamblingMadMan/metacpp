@@ -14,7 +14,7 @@
 
 #include "metacpp/meta.hpp"
 
-#include "../../test.hpp"
+#include "test.meta.hpp"
 
 class [[my::attrib(1, "2", 3.0)]] example{
 	public:
@@ -52,6 +52,8 @@ namespace ex{
 
 	};
 }
+
+class example_helped_instance: public ex::example_test_helped<std::string, int>{};
 
 enum class example_enum{
 	case_0 = 69,

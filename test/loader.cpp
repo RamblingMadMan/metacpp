@@ -18,39 +18,25 @@
 int main(int argc, char *argv[]){
 	auto plugs = plugin::nearby_plugins();
 
-	std::unordered_map<std::string_view, refl::class_info> classes;
-
 	for(auto &&path : plugs){
 		fmt::print("Plugin '{}'\n", path.c_str());
-
-		auto plug = plugin::load(path);
-
-		auto &&types = plug->exported_types();
-		for(auto type : types){
-			fmt::print("  Exports type '{}'\n", type->name());
-
-			auto cls = dynamic_cast<refl::class_info>(type);
-			if(cls){
-				classes[cls->name()] = cls;
-			}
-		}
-
-		auto &&fns = plug->exported_functions();
-		for(auto fn : fns){
-			fmt::print("  Exports fn '{}'\n", fn->name());
-		}
+		plugin::load(path);
 	}
 
-	auto derived_res = classes.find("TestDerived");
-	assert(derived_res != classes.end());
+	refl::class_info helped_cls;
+	assert(helped_cls = refl::reflect_class("example_helped_instance"));
 
-	auto base_res = classes.find("TestBase");
-	assert(base_res != classes.end());
+	auto instance = refl::value<TestTemplateClass<int>>(meta::type<example_helped_instance>{});
 
-	auto derived = derived_res->second;
-	auto base = base_res->second;
+	assert(instance.as<TestTemplateClass<int>>());
 
-	assert(refl::has_base(derived, base));
+	refl::class_info derived_cls;
+	assert(derived_cls = refl::reflect_class("TestDerived"));
+
+	refl::class_info base_cls;
+	assert(base_cls = refl::reflect_class("TestBase"));
+
+	assert(refl::has_base(derived_cls, base_cls));
 
 	return 0;
 }

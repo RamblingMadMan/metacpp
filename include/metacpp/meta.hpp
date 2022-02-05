@@ -205,12 +205,25 @@ namespace metapp{
 	inline constexpr auto get_v = Values::template value<I>;
 
 	template<template<typename...> class T, typename ... Us>
-	class partial{
+	struct partial{
 		using args = types<Us...>;
 
 		template<typename ... Vs>
 		using apply = T<Us..., Vs...>;
 	};
+
+	namespace detail{
+		template<template<typename...> class T, typename Args>
+		struct instantiate_helper;
+
+		template<template<typename...> class T, typename ... Args>
+		struct instantiate_helper<T, types<Args...>>{
+			using type = T<Args...>;
+		};
+	}
+
+	template<template<typename...> class T, typename Args>
+	using instantiate = typename detail::instantiate_helper<T, Args>::type;
 
 	namespace detail{
 		template<typename Ts, typename Indices>
@@ -388,6 +401,54 @@ namespace metapp{
 	template<typename Ts, typename Fn>
 	void for_all_i(Fn &&f){
 		detail::for_all_i_helper<Ts>::invoke(std::forward<Fn>(f));
+	}
+
+	namespace detail{
+		template<typename Ts, typename = void>
+		struct map_all_helper;
+
+		template <typename AlwaysVoid, typename... Ts>
+		struct has_common_type_impl : std::false_type {};
+
+		template <typename... Ts>
+		struct has_common_type_impl<std::void_t<std::common_type_t<Ts...>>, Ts...> : std::true_type {};
+
+		template <typename... Ts>
+		inline constexpr bool has_common_type = has_common_type_impl<void, Ts...>::value;
+
+		template<typename ... Ts>
+		struct map_all_helper<types<Ts...>, std::void_t<std::common_type_t<Ts...>>>{
+			public:
+				template<typename Fn>
+				static auto invoke(Fn &&f){
+					using fn_type = std::decay_t<Fn>;
+
+					if constexpr(has_common_type<Ts...>){
+						using common_type = std::common_type_t<Ts...>;
+						using result_type = std::array<common_type, sizeof...(Ts)>;
+
+						if constexpr((std::is_invocable_v<fn_type, metapp::type<Ts>> && ...)){
+							return result_type(std::forward<Fn>(f)(metapp::type<Ts>{})...);
+						}
+						else{
+							return result_type(std::forward<Fn>(f).template operator()<Ts>()...);
+						}
+					}
+					else{
+						if constexpr((std::is_invocable_v<fn_type, metapp::type<Ts>> && ...)){
+							return std::make_tuple(std::forward<Fn>(f)(metapp::type<Ts>{})...);
+						}
+						else{
+							return std::make_tuple(std::forward<Fn>(f).template operator()<Ts>()...);
+						}
+					}
+				}
+		};
+	}
+
+	template<typename ... Ts, typename Fn>
+	auto map_all(types<Ts...>, Fn &&f){
+		return detail::map_all_helper<types<Ts...>>::invoke(std::forward<Fn>(f));
 	}
 
 	namespace detail{
@@ -602,11 +663,14 @@ namespace metapp{
 
 	template<typename Class, typename Idx>
 	struct class_ctor_info{
+		using params = typename detail::class_ctor_info_data<Class, get_v<Idx>>::params;
+
 		static constexpr bool is_move_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_move_ctor;
 		static constexpr bool is_copy_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_copy_ctor;
 		static constexpr bool is_default_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_default_ctor;
 
-		static constexpr std::size_t num_params = detail::class_ctor_info_data<Class, get_v<Idx>>::num_params;
+		static constexpr std::size_t num_params = params::size;
+
 		//using param_types = typename detail::param_info_data<class_ctor_info<Class, get_v<Idx>>, Idx>::param_types;
 	};
 
@@ -660,7 +724,7 @@ namespace metapp{
 		constexpr bool operator!=(T&&) const noexcept{ return false; }
 	};
 
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L && !METACPP_TOOL_RUN
 	namespace detail{
 		template<fixed_str Scope, fixed_str Name, typename Attribs, typename ... Results>
 		struct query_attribs_helper;
@@ -753,7 +817,7 @@ namespace metapp{
 
 		static constexpr bool is_abstract = std::is_abstract_v<Class>;
 
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L && !METACPP_TOOL_RUN
 		template<fixed_str Scope, fixed_str Name>
 		using query_attributes = typename detail::query_attribs_helper<Scope, Name, attributes>::type;
 
@@ -762,7 +826,7 @@ namespace metapp{
 #endif
 	};
 
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L && !METACPP_TOOL_RUN
 	template<typename Class, fixed_str Name, typename Signature = ignore>
 	using query_methods = typename detail::query_methods_helper<Signature, Name, typename class_info<Class>::methods>::type;
 #endif
@@ -776,8 +840,24 @@ namespace metapp{
 	template<typename Class, std::size_t Idx>
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;
 
+	namespace detail{
+		template<typename Params>
+		struct param_types_helper;
+
+		template<typename ... ParamInfos>
+		struct param_types_helper<types<ParamInfos...>>{
+			using type = types<typename ParamInfos::type...>;
+		};
+	}
+
+	template<typename Ent>
+	using param_types = typename detail::param_types_helper<typename Ent::params>::types;
+
 	template<typename Class>
 	using bases = typename class_info<Class>::bases;
+
+	template<typename Class>
+	using ctors = typename class_info<Class>::ctors;
 
 	template<typename Class>
 	using methods = typename class_info<Class>::methods;
@@ -877,7 +957,7 @@ namespace metapp{
 	template<typename Ent, std::size_t Idx>
 	using attribute_args = typename get_t<typename info<Ent>::attributes, Idx>::args;
 
-#if __cplusplus >= 202002L
+#if __cplusplus >= 202002L && !METACPP_TOOL_RUN
 	template<typename Ent, fixed_str Scope, fixed_str Name>
 	using query_attribs = typename detail::query_attribs_helper<Scope, Name, typename info<Ent>::attributes>::type;
 #endif

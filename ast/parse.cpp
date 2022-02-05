@@ -343,20 +343,20 @@ namespace astpp::detail{
 		if(!clang_isInvalid(type_decl.kind())){
 			auto namespaces = resolve_namespaces(type_decl);
 			member_type_str = fmt::format("{}::{}", namespaces, member_type_str);
-		}
 
-		auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
+			auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
 
-		if(num_tmpl_args > 0){
-			member_type_str += "<";
+			if(num_tmpl_args > 0){
+				member_type_str += "<";
 
-			for(int i = 0; i < num_tmpl_args; i++){
-				clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
-				member_type_str += fmt::format("{}, ", arg_type.spelling());
+				for(int i = 0; i < num_tmpl_args; i++){
+					clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
+					member_type_str += fmt::format("{}, ", arg_type.spelling());
+				}
+
+				member_type_str.erase(member_type_str.size() - 2);
+				member_type_str += ">";
 			}
-
-			member_type_str.erase(member_type_str.size() - 2);
-			member_type_str += ">";
 		}
 
 		ret.ns = cls->ns;

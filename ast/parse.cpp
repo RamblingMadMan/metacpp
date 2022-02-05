@@ -339,10 +339,11 @@ namespace astpp::detail{
 
 		auto member_type = c.type();
 		auto member_type_str = member_type.spelling();
+
 		clang::cursor type_decl = clang_getTypeDeclaration(member_type);
 		if(!clang_isInvalid(type_decl.kind())){
 			auto namespaces = resolve_namespaces(type_decl);
-			member_type_str = fmt::format("{}::{}", namespaces, member_type_str);
+			member_type_str = fmt::format("{}::{}", namespaces, type_decl.spelling());
 
 			auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
 

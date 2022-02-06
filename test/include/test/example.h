@@ -63,7 +63,7 @@ namespace ex{
 	};
 }
 
-class example_helped_instance: public ex::example_test_helped<std::string, int>{};
+class example_helped_instance: public ex::example_test_helped<int, std::string>{};
 
 enum class example_enum{
 	case_0 = 69,

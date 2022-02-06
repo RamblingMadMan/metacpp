@@ -104,6 +104,12 @@ function(target_reflect tgt)
 
 	file(MAKE_DIRECTORY ${OUTPUT_DIR})
 
+	if(${TGT_TYPE} STREQUAL "INTERFACE_LIBRARY")
+		target_include_directories(${tgt} INTERFACE ${OUTPUT_DIR})
+	else()
+		target_include_directories(${tgt} PUBLIC ${OUTPUT_DIR})
+	endif()
+
 	foreach(SRC IN LISTS TGT_SOURCES)
 		cmake_path(GET SRC EXTENSION TGT_SRC_EXT)
 		if(TGT_SRC_EXT MATCHES "(\\.hpp)|(\\.h)")

@@ -494,35 +494,56 @@ namespace astpp::detail{
 		class_base_info base;
 		base.name = std::move(base_type_str);
 
+		/*
 		auto toks = c.tokens();
-		auto toks_begin = std::make_reverse_iterator(toks.end());
+		auto tok_it = toks.begin();
+		auto tok_end = toks.end();
 
-		auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+		while(
+			tok_it != tok_end && (
+				  tok_it->str() == "public" ||
+				  tok_it->str() == "protected" ||
+				  tok_it->str() == "private" ||
+				  tok_it->str() == "virtual"
+			)
+		){
+			++tok_it;
+		}
+
+		std::string base_str;
+		for(auto it = tok_it; it != tok_end; ++it){
+			base_str += it->str();
+		}
+		*/
 
 		std::unordered_map<std::string_view, const template_param_info*> param_map;
 		for(auto &&param : cls->template_params){
 			param_map[param.name] = &param;
 		}
 
-		if(num_tmpl_args > 0){
-			base.name += "<";
+		const auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
+
+		if(num_tmpl_args != -1){
+			std::string template_args_str;
 
 			for(int i = 0; i < num_tmpl_args; i++){
 				clang::type arg_type = clang_Type_getTemplateArgumentAsType(base_type, i);
+				const auto arg_type_name = arg_type.spelling();
+				template_args_str += fmt::format("{}, ", arg_type_name);
 
-				base.name += fmt::format("{}, ", arg_type.spelling());
-
-				auto res = param_map.find(arg_type.spelling());
+				auto res = param_map.find(arg_type_name);
 				if(res != param_map.end()){
 					if(res->second->is_variadic){
 						base.is_variadic = true;
-						break;
 					}
 				}
 			}
 
-			base.name.erase(base.name.size() - 2);
-			base.name += ">";
+			if(!template_args_str.empty()){
+				template_args_str.erase(template_args_str.size() - 2);
+			}
+
+			base.name += fmt::format("<{}>", template_args_str);
 		}
 
 		switch(clang_getCXXAccessSpecifier(c)){

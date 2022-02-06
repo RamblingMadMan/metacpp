@@ -363,7 +363,7 @@ namespace reflpp{
 									return;
 								}
 
-								ret = static_cast<info_inner*>(self);
+								ret = dynamic_cast<info_inner*>(self);
 							});
 						}
 						else{
@@ -371,7 +371,7 @@ namespace reflpp{
 								return;
 							}
 
-							ret = static_cast<typename info::type*>(self);
+							ret = dynamic_cast<typename info::type*>(self);
 						}
 					}
 				});

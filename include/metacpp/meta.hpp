@@ -537,6 +537,29 @@ namespace metapp{
 #endif
 
 	namespace detail{
+		constexpr std::size_t cfind(std::string_view str, std::string_view sub){
+			for(std::size_t i = 0; i < str.size(); i++){
+				if(sub.size() > str.size() - i){
+					break;
+				}
+
+				bool found = true;
+
+				for(std::size_t j = 0; j < sub.size(); j++){
+					if(str[i + j] != sub[j]){
+						found = false;
+						break;
+					}
+				}
+
+				if(found){
+					return i;
+				}
+			}
+
+			return std::string_view::npos;
+		}
+
 		template<typename T>
 		constexpr auto get_type_name(){
 			using namespace std::string_view_literals;
@@ -558,7 +581,7 @@ namespace metapp{
 
 			static_assert(!function.empty());
 
-			constexpr auto prefix_index = function.find(prefix);
+			constexpr auto prefix_index = cfind(function, prefix);
 
 			static_assert(prefix_index != std::string_view::npos);
 

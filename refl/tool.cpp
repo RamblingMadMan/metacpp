@@ -13,6 +13,7 @@
 
 #include "fmt/format.h"
 
+#include "metacpp/config.hpp"
 #include "make_meta.hpp"
 
 namespace fs = std::filesystem;
@@ -125,6 +126,10 @@ std::string make_namespace_refl(const ast::namespace_info &ns, std::string &ctor
 	return output;
 }
 
+void print_version(){
+	fmt::print(METACPP_VERSION_STR "\n");
+}
+
 void print_usage(const char *argv0, std::FILE *out = stdout){
 	fmt::print(out, "Usage: {} [-o <out-dir>] <build-dir> header [other-headers ..]\n", argv0);
 }
@@ -141,10 +146,18 @@ int main(int argc, char *argv[]){
 
 	headers.reserve(argc - 2); // we know argc >= 3
 
+	bool version_printed = false;
+
 	for(int i = 1; i < argc; i++){
 		std::string_view arg = argv[i];
 
-		if(arg == "-o"){
+		if(arg == "-v" || arg == "--version"){
+			if(!version_printed){
+				print_version();
+				version_printed = true;
+			}
+		}
+		else if(arg == "-o"){
 			++i;
 			if(i == argc){
 				print_usage(argv[0], stderr);
@@ -193,12 +206,22 @@ int main(int argc, char *argv[]){
 	}
 
 	if(build_dir.empty()){
-		fmt::print(stderr, "no build directory specified\n");
-		return EXIT_FAILURE;
+		if(version_printed){
+			return EXIT_SUCCESS;
+		}
+		else{
+			fmt::print(stderr, "no build directory specified\n");
+			return EXIT_FAILURE;
+		}
 	}
 	else if(headers.empty()){
-		fmt::print(stderr, "no header files passed\n");
-		return EXIT_FAILURE;
+		if(version_printed){
+			return EXIT_SUCCESS;
+		}
+		else{
+			fmt::print(stderr, "no header files passed\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	auto compile_info = ast::compile_info(build_dir);

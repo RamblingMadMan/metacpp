@@ -431,6 +431,7 @@ namespace reflpp{
 						return;
 					}
 					else{
+						if(ret) return;
 						if constexpr(info::is_variadic){
 							metapp::for_all<typename info::type>([idx, self, &cur_idx, &ret](auto inner_info){
 								using info_inner = metapp::get_t<decltype(inner_info)>;

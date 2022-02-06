@@ -158,6 +158,7 @@ namespace astpp{
 		entity_kind kind() const noexcept override{ return entity_kind::class_destructor; }
 
 		bool is_noexcept;
+		bool is_accessable;
 
 		enum constructor_kind constructor_kind;
 		std::vector<std::string> param_types, param_names;

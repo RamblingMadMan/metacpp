@@ -115,6 +115,7 @@ std::string make_ctor_meta(
 		"\t"	"static constexpr bool is_move_ctor = {3};\n"
 		"\t"	"static constexpr bool is_copy_ctor = {4};\n"
 		"\t"	"static constexpr bool is_default_ctor = {5};\n"
+		"\t"	"static constexpr bool is_accessable = {9};\n"
 		"}};\n",
 		full_name,
 		idx,
@@ -124,7 +125,8 @@ std::string make_ctor_meta(
 		ctor.constructor_kind == ast::constructor_kind::default_,
 		tmpl_params,
 		params_member_str,
-		output
+		output,
+		ctor.is_accessable
 	);
 }
 

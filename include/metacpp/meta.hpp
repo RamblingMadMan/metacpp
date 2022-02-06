@@ -717,6 +717,7 @@ namespace metapp{
 		static constexpr bool is_move_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_move_ctor;
 		static constexpr bool is_copy_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_copy_ctor;
 		static constexpr bool is_default_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_default_ctor;
+		static constexpr bool is_accessable = detail::class_ctor_info_data<Class, get_v<Idx>>::is_accessable;
 
 		static constexpr std::size_t num_params = params::size;
 

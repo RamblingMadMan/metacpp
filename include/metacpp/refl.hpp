@@ -464,24 +464,26 @@ namespace reflpp{
 
 					metapp::for_all<metapp::ctors<T>>([&](auto info_type){
 						using ctor_info = metapp::get_t<decltype(info_type)>;
-						if(ret) return;
+						if constexpr(ctor_info::is_accessable){
+							if(ret) return;
 
-						if constexpr(ctor_info::params::size == 0){
-							if(args->size() != 0) return;
-							else ret = new(p) T();
-						}
-						else{
-							using param_types = metapp::param_types<ctor_info>;
-							using args_derived = metapp::instantiate<args_pack, param_types>;
-
-							auto args_ptr = dynamic_cast<args_derived*>(args);
-							if(!args_ptr){
-								return;
+							if constexpr(ctor_info::params::size == 0){
+								if(args->size() != 0) return;
+								else ret = new(p) T();
 							}
+							else{
+								using param_types = metapp::param_types<ctor_info>;
+								using args_derived = metapp::instantiate<args_pack, param_types>;
 
-							args_ptr->apply([&](auto &&... args){
-								ret = new(p) T(std::forward<decltype(args)>(args)...);
-							});
+								auto args_ptr = dynamic_cast<args_derived*>(args);
+								if(!args_ptr){
+									return;
+								}
+
+								args_ptr->apply([&](auto &&... args){
+									ret = new(p) T(std::forward<decltype(args)>(args)...);
+								});
+							}
 						}
 					});
 

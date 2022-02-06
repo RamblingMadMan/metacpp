@@ -235,6 +235,9 @@ namespace astpp::detail{
 			ret.constructor_kind = constructor_kind::generic;
 		}
 
+		auto availability = clang_getCursorAvailability(c);
+		ret.is_accessable = availability == CXAvailability_Available || availability == CXAvailability_Deprecated;
+
 		std::function<std::string(std::string_view)> replace_self_refs = [](std::string_view type_str){
 			return std::string(type_str);
 		};

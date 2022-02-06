@@ -10,6 +10,11 @@
 #ifndef METACPP_PLUGIN_HPP
 #define METACPP_PLUGIN_HPP 1
 
+/**
+ * @defgroup Plugin Plugin utilities
+ * @{
+ */
+
 #include "refl.hpp"
 
 #include <vector>
@@ -22,6 +27,9 @@ namespace pluginpp{
 		std::vector<reflpp::type_info> param_types;
 	};
 
+	/**
+	 * @brief Information about an executable/plugin.
+	 */
 	class library{
 		public:
 			virtual ~library() = default;
@@ -36,12 +44,27 @@ namespace pluginpp{
 			virtual void *get_symbol(const std::string &name) const noexcept = 0;
 	};
 
+	/**
+	 * @brief Get a list of plugins placed in the same folder as the executable.
+	 */
 	std::vector<std::filesystem::path> nearby_plugins();
 
+	/**
+	 * @brief Try to load a plugin.
+	 * @returns `nullptr` on error, handle to the loaded plugin on success
+	 */
 	const library *load(const std::filesystem::path &path);
+
+	/**
+	 * @brief Get a reference to the running executable.
+	 */
 	const library *self();
 }
 
 namespace METACPP_PLUGIN_NAMESPACE = pluginpp;
+
+/**
+ * @}
+ */
 
 #endif // !METACPP_PLUGIN_HPP

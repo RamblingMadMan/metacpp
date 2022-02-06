@@ -10,6 +10,12 @@
 #ifndef METACPP_SERIAL_HPP
 #define METACPP_SERIAL_HPP 1
 
+/**
+ * @defgroup Serial Serialization utilities
+ * @warning These features are currently experimental.
+ * @{
+ */
+
 #include "meta.hpp"
 
 #include <sstream>
@@ -61,5 +67,9 @@ namespace serialpp{
 }
 
 namespace METACPP_SERIAL_NAMESPACE = serialpp;
+
+/**
+ * @}
+ */
 
 #endif // !METACPP_SERIAL_HPP

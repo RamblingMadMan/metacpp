@@ -40,36 +40,106 @@ namespace reflpp{
 		struct reflect_helper;
 	};
 
+	/**
+	 * @brief Handle to information about a type.
+	 */
 	using type_info = const detail::type_info_helper*;
+
+	/**
+	 * @brief Handle to information about an arithmetic type.
+	 */
 	using num_info = const detail::num_info_helper*;
+
+	/**
+	 * @brief Handle to information about an integer type.
+	 */
 	using int_info = const detail::int_info_helper*;
+
+	/**
+	 * @brief Handle to information about a function.
+	 */
 	using function_info = const detail::function_info_helper*;
+
+	/**
+	 * @brief Handle to information about a class/struct.
+	 */
 	using class_info = const detail::class_info_helper*;
+
+	/**
+	 * @brief Handle to information about an enum.
+	 */
 	using enum_info = const detail::enum_info_helper*;
 
+	/**
+	 * @brief Handle to information about a class method.
+	 */
 	using class_method_info = const detail::class_method_helper*;
+
+	/**
+	 * @brief Handle to information about a class member.
+	 */
 	using class_variable_info = const detail::class_variable_helper*;
 
+	/**
+	 * @brief Try to dynamically get information about a type by name.
+	 * @param name type name to search for
+	 * @returns `nullptr` on error, handle to found type on success
+	 */
 	type_info reflect(std::string_view name);
+
+	/**
+	 * @brief Try to dynamically get information about a class type.
+	 * @see reflect
+	 */
 	class_info reflect_class(std::string_view name);
+
+	/**
+	 * @brief Try to dynamically get information about an enum type.
+	 * @see reflect
+	 */
 	enum_info reflect_enum(std::string_view name);
 
+	/**
+	 * @brief Helper function for reflecting class types.
+	 * @see reflect_class
+	 */
 	inline class_info class_(std::string_view name){ return reflect_class(name); }
+
+	/**
+	 * @brief Helper function for reflecting enum types.
+	 * @see reflect_enum
+	 */
 	inline enum_info enum_(std::string_view name){ return reflect_enum(name); }
 
+	/**
+	 * @brief Get information about a function from it's pointer.
+	 * @warning Currently unimplemented.
+	 */
 	template<typename Ret, typename ... Args>
 	function_info reflect(Ret(*ptr)(Args...)){
 		return nullptr;
 	}
 
+	/**
+	 * @brief Get dynamic type information for a known type.
+	 * @see reflect
+	 */
 	template<typename T>
 	auto reflect(){
 		static auto ret = detail::reflect_helper<T>::reflect();
 		return ret;
 	}
 
+	/**
+	 * @brief Check if a type has a specified base class.
+	 * @param type type to check
+	 * @param base base to check against
+	 */
 	bool has_base(class_info type, class_info base) noexcept;
 
+	/**
+	 * @brief Helper type for dynamically passing arguments.
+	 */
 	struct args_pack_base{
 		virtual std::size_t size() const noexcept = 0;
 		virtual void *arg(std::size_t idx) const noexcept = 0;
@@ -115,6 +185,12 @@ namespace reflpp{
 			type_info m_types[sizeof...(Args)];
 	};
 
+	/**
+	 * @brief Pack a set of arguments for passing dynamically.
+	 * @warning Arguments passed to this function must stay alive until the returned pack is destroyed.
+	 * @param args arguments to pack
+	 * @returns newly created argument pack
+	 */
 	template<typename ... Args>
 	auto pack_args(Args &&... args){
 		return args_pack<std::decay_t<Args>...>(std::forward<Args>(args)...);
@@ -595,6 +671,10 @@ namespace reflpp{
 		using function_export_fn = function_info(*)();
 	}
 
+	/**
+	 * @brief Class for dynamically creating values of statically-unknown types.
+	 * @tparam Base base class of all created values or `void` for any value.
+	 */
 	template<typename Base = void>
 	class alignas(16) value{
 		public:
@@ -661,26 +741,58 @@ namespace reflpp{
 			Base *operator->() noexcept{ return as<Base>(); }
 			const Base *operator->() const noexcept{ return as<Base>(); }
 
+			/**
+			 * @brief Check that a value is contained in the object.
+			 */
 			bool is_valid() const noexcept{ return !!m_type; }
 
+			/**
+			 * @brief Get the type of the contained value.
+			 */
 			info_type type() const noexcept{ return m_type; }
 
+			/**
+			 * @brief Try to get the value as a specified type.
+			 */
 			template<typename T>
 			T *as() noexcept{
 				if(!is_valid()){
 					return nullptr;
 				}
 
-				return m_type->template cast_to<T>(ptr());
+				if constexpr(std::is_class_v<Base>){
+					return m_type->template cast_to<T>(ptr());
+				}
+				else if constexpr(std::is_class_v<T>){
+					auto cls = dynamic_cast<class_info>(m_type);
+					if(!cls) return nullptr;
+					return cls->template cast_to<T>(ptr());
+				}
+				else{
+					return m_type == reflect<T>() ? reinterpret_cast<T*>(ptr()) : nullptr;
+				}
 			}
 
+			/**
+			 * @brief Try to get the value as a specified type.
+			 */
 			template<typename T>
 			const T *as() const noexcept{
 				if(!is_valid()){
 					return nullptr;
 				}
 
-				return m_type->template cast_to<T>(ptr());
+				if constexpr(std::is_class_v<Base>){
+					return m_type->template cast_to<T>(ptr());
+				}
+				else if constexpr(std::is_class_v<T>){
+					auto cls = dynamic_cast<class_info>(m_type);
+					if(!cls) return nullptr;
+					return cls->template cast_to<T>(ptr());
+				}
+				else{
+					return m_type == reflect<T>() ? reinterpret_cast<T*>(ptr()) : nullptr;
+				}
 			}
 
 		private:

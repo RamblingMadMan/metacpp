@@ -597,6 +597,11 @@ namespace metapp{
 	}
 
 	/**
+	 * @defgroup Introspect Type Introspection
+	 * @{
+	 */
+
+	/**
 	 * @brief Get the pretty name of a type.
 	 */
 	template<typename T>
@@ -647,11 +652,17 @@ namespace metapp{
 		public_, protected_, private_
 	};
 
+	/**
+	 * @brief Information about an attribute argument.
+	 */
 	template<typename Ent, typename AttribIdx, typename Idx>
 	struct attrib_arg_info{
 		static constexpr std::string_view value = detail::attrib_arg_info_data<Ent, get_v<AttribIdx>, get_v<Idx>>::value;
 	};
 
+	/**
+	 * @brief Information about an attribute.
+	 */
 	template<typename Ent, typename Idx>
 	struct attrib_info{
 		using args = typename detail::attrib_info_data<Ent, get_v<Idx>>::args;
@@ -660,6 +671,9 @@ namespace metapp{
 		static constexpr std::string_view name = detail::attrib_info_data<Ent, get_v<Idx>>::name;
 	};
 
+	/**
+	 * @brief Information about a function/constructor parameter.
+	 */
 	template<typename Ent, typename Idx>
 	struct param_info{
 		using type = typename detail::param_info_data<Ent, get_v<Idx>>::type;
@@ -667,6 +681,9 @@ namespace metapp{
 		static constexpr std::string_view name = detail::param_info_data<Ent, get_v<Idx>>::name;
 	};
 
+	/**
+	 * @brief Information about a function.
+	 */
 	template<auto Fn>
 	struct function_info{
 		using type = typename detail::function_info_data<Fn>::type;
@@ -676,6 +693,9 @@ namespace metapp{
 		static constexpr std::string_view name = detail::function_info_data<Fn>::name;
 	};
 
+	/**
+	 * @brief Information about a class base.
+	 */
 	template<typename Class, typename Idx>
 	struct class_base_info{
 		using type = typename detail::class_base_info_data<Class, get_v<Idx>>::type;
@@ -684,6 +704,9 @@ namespace metapp{
 		static constexpr access_kind access = detail::class_base_info_data<Class, get_v<Idx>>::access;
 	};
 
+	/**
+	 * @brief Information about a class constructor.
+	 */
 	template<typename Class, typename Idx>
 	struct class_ctor_info{
 		using params = typename detail::class_ctor_info_data<Class, get_v<Idx>>::params;
@@ -697,18 +720,27 @@ namespace metapp{
 		//using param_types = typename detail::param_info_data<class_ctor_info<Class, get_v<Idx>>, Idx>::param_types;
 	};
 
+	/**
+	 * @brief Information about a class destructor.
+	 */
 	template<typename Class>
 	struct class_dtor_info{
 		static constexpr bool is_virtual = std::has_virtual_destructor_v<Class>;
 		//static constexpr bool is_defaulted = detail::class_dtor_info_data<Class>::is_defaulted;
 	};
 
+	/**
+	 * @brief Information about a class method parameter.
+	 */
 	template<typename Class, typename MethodIdx, typename Idx>
 	struct class_method_param_info{
 		static constexpr std::string_view name = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::name;
 		using type = typename detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::type;
 	};
 
+	/**
+	 * @brief Information about a class method.
+	 */
 	template<typename Class, typename Idx>
 	struct class_method_info{
 		using ptr_type = typename detail::class_method_info_data<Class, get_v<Idx>>::ptr_type;
@@ -726,6 +758,9 @@ namespace metapp{
 		}
 	};
 
+	/**
+	 * @brief Information about a class member.
+	 */
 	template<typename Class, typename Idx>
 	struct class_member_info{
 		using type = typename detail::class_member_info_data<Class, get_v<Idx>>::type;
@@ -739,6 +774,9 @@ namespace metapp{
 		}
 	};
 
+	/**
+	 * @brief Helper tag type for ignoring aspects of a query.
+	 */
 	struct ignore{
 		template<typename T>
 		constexpr bool operator==(T&&) const noexcept{ return true; }
@@ -828,6 +866,9 @@ namespace metapp{
 	}
 #endif
 
+	/**
+	 * @brief Information about a class.
+	 */
 	template<typename Class>
 	struct class_info{
 		using attributes = typename detail::class_info_data<Class>::attributes;
@@ -850,16 +891,28 @@ namespace metapp{
 	};
 
 #if __cplusplus >= 202002L && !METACPP_TOOL_RUN
+	/**
+	 * @brief Query a classes methods.
+	 */
 	template<typename Class, fixed_str Name, typename Signature = ignore>
 	using query_methods = typename detail::query_methods_helper<Signature, Name, typename class_info<Class>::methods>::type;
 #endif
 
+	/**
+	 * @brief Get a classes constructor by index.
+	 */
 	template<typename Class, std::size_t Idx>
 	using class_ctor = get_t<typename class_info<Class>::ctors, Idx>;
 
+	/**
+	 * @brief Get a classes destructor.
+	 */
 	template<typename Class>
 	using class_dtor = typename class_info<Class>::dtor;
 
+	/**
+	 * @brief Get a classes method by index.
+	 */
 	template<typename Class, std::size_t Idx>
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;
 
@@ -873,27 +926,48 @@ namespace metapp{
 		};
 	}
 
+	/**
+	 * @brief Get the parameter types for a function/constructor.
+	 */
 	template<typename Ent>
 	using param_types = typename detail::param_types_helper<typename Ent::params>::type;
 
+	/**
+	 * @brief Get the bases of a class.
+	 */
 	template<typename Class>
 	using bases = typename class_info<Class>::bases;
 
+	/**
+	 * @brief Get the constructors of a class.
+	 */
 	template<typename Class>
 	using ctors = typename class_info<Class>::ctors;
 
+	/**
+	 * @brief Get the methods of a class.
+	 */
 	template<typename Class>
 	using methods = typename class_info<Class>::methods;
 
+	/**
+	 * @brief Get the members of a class.
+	 */
 	template<typename Class>
 	using members = typename class_info<Class>::members;
 
+	/**
+	 * @brief Information about an enumeration value.
+	 */
 	template<typename Enum, typename Idx>
 	struct enum_value_info{
 		static constexpr std::string_view name = detail::enum_value_info_data<Enum, get_v<Idx>>::name;
 		static constexpr std::uint64_t value = detail::enum_value_info_data<Enum, get_v<Idx>>::value;
 	};
 
+	/**
+	 * @brief Information about an enum.
+	 */
 	template<typename Enum>
 	struct enum_info{
 		using values = typename detail::enum_info_data<Enum>::values;
@@ -926,15 +1000,25 @@ namespace metapp{
 		};
 	}
 
+	/**
+	 * @brief Get an enum value by name.
+	 * @param name Name of the value to retrieve
+	 */
 	template<typename Enum>
 	inline constexpr Enum get_value(const std::string_view name){
 		using info = enum_info<Enum>;
 		return detail::get_value_helper<Enum, typename info::values>::get(name);
 	}
 
+	/**
+	 * @brief Get the number of values in an enum.
+	 */
 	template<typename Enum>
 	inline constexpr std::size_t num_enum_values = enum_info<Enum>::num_values;
 
+	/**
+	 * @brief Get information about an enum value by index.
+	 */
 	template<typename Enum, std::size_t Idx>
 	using enum_value = get_t<typename enum_info<Enum>::values, Idx>;
 
@@ -948,6 +1032,9 @@ namespace metapp{
 		};
 	}
 
+	/**
+	 * @brief Get information about an entity.
+	 */
 	template<typename Ent>
 	using info = typename detail::info_helper<Ent>::type;
 
@@ -971,19 +1058,35 @@ namespace metapp{
 		};
 	}
 
+	/**
+	 * @brief Check if introspection information exists for a type.
+	 */
 	template<typename Ent>
 	inline constexpr bool has_info = detail::has_info_helper<Ent>::value;
 
+	/**
+	 * @brief Get information about the attributes of an entity.
+	 */
 	template<typename Ent>
 	using attributes = typename info<Ent>::attributes;
 
+	/**
+	 * @brief Get the args of an entity attribute by index.
+	 */
 	template<typename Ent, std::size_t Idx>
 	using attribute_args = typename get_t<typename info<Ent>::attributes, Idx>::args;
 
 #if __cplusplus >= 202002L && !METACPP_TOOL_RUN
+	/**
+	 * @brief Query an entities attributes.
+	 */
 	template<typename Ent, fixed_str Scope, fixed_str Name>
 	using query_attribs = typename detail::query_attribs_helper<Scope, Name, typename info<Ent>::attributes>::type;
 #endif
+
+	/**
+	 * @}
+	 */
 }
 
 namespace METACPP_META_NAMESPACE = metapp;

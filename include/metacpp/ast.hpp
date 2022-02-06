@@ -130,6 +130,7 @@ namespace astpp{
 		entity_kind kind() const noexcept override{ return entity_kind::class_member; }
 
 		std::string type;
+		bool is_accessable;
 	};
 
 	struct class_method_info: entity_info{
@@ -143,6 +144,7 @@ namespace astpp{
 		bool is_pure_virtual;
 		bool is_defaulted;
 		bool is_noexcept;
+		bool is_accessable;
 
 		std::string result_type;
 		std::vector<std::string> param_types, param_names;

@@ -63,6 +63,8 @@ struct TestTemplateClass{
 		TestTemplateClass(U &&val) noexcept(noexcept(T(std::forward<U>(val))))
 			: m_value(std::forward<U>(val)){}
 
+		TestTemplateClass &operator=(const TestTemplateClass&) = delete;
+
 		template<typename U>
 		void set_value(U &&v){
 			m_value = std::forward<U>(v);

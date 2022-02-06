@@ -652,6 +652,9 @@ namespace metapp{
 		public_, protected_, private_
 	};
 
+	template<typename Ptr>
+	struct inaccessible{};
+
 	/**
 	 * @brief Information about an attribute argument.
 	 */

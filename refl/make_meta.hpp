@@ -134,14 +134,23 @@ std::string make_member_meta(
 	const ast::class_member_info &m,
 	std::size_t idx
 ){
+	std::string ptr_str;
+
+	if(m.is_accessable){
+		ptr_str = fmt::format("\t"	"static constexpr ptr_type ptr = &{}::{};\n", full_name, m.name);
+	}
+	else{
+		ptr_str = fmt::format("\t"	"static constexpr metapp::inaccessible<ptr_type> ptr = {{}};\n");
+	}
+
 	return fmt::format(
 		"template<{4}> struct metapp::detail::class_member_info_data<{0}, {1}>{{\n"
 		"\t"	"using type = {3};\n"
 		"\t"	"using ptr_type = type ({0}::*);\n"
 		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
-		"\t"	"static constexpr ptr_type ptr = &{0}::{2};\n"
+				"{5}"
 		"}};\n",
-		full_name, idx, m.name, m.type, tmpl_params
+		full_name, idx, m.name, m.type, tmpl_params, ptr_str
 	);
 }
 
@@ -187,6 +196,15 @@ std::string make_method_meta(
 		params_member_str += "\n\t";
 	}
 
+	std::string ptr_str;
+
+	if(m.is_accessable){
+		ptr_str = fmt::format("\t"	"static constexpr ptr_type ptr = &{}::{};\n", full_name, m.name);
+	}
+	else{
+		ptr_str = fmt::format("\t"	"static constexpr metapp::inaccessible<ptr_type> ptr = {{}};\n");
+	}
+
 	return fmt::format(
 		"{7}"
 		"template<{10}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
@@ -195,7 +213,7 @@ std::string make_method_meta(
 		"\t"	"using param_types = metapp::types<{4}>;\n"
 		"\t"	"using params = metapp::types<{8}>;\n"
 		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
-		"\t"	"static constexpr ptr_type ptr = &{0}::{2};\n"
+				"{11}"
 		"}};\n",
 		full_name,
 		idx,
@@ -207,7 +225,8 @@ std::string make_method_meta(
 		param_metas_str,
 		params_member_str,
 		m.result_type,
-		tmpl_params
+		tmpl_params,
+		ptr_str
 	);
 }
 

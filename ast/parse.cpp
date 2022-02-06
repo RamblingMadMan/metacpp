@@ -364,6 +364,9 @@ namespace astpp::detail{
 		ret.name = c.spelling();
 		ret.type = member_type_str;
 
+		auto availability = clang_getCursorAvailability(c);
+		ret.is_accessable = availability == CXAvailability_Available || availability == CXAvailability_Deprecated;
+
 		return ret;
 	}
 
@@ -386,6 +389,9 @@ namespace astpp::detail{
 		ret.is_virtual = clang_CXXMethod_isVirtual(c);
 		ret.is_pure_virtual = clang_CXXMethod_isPureVirtual(c);
 		ret.is_defaulted = clang_CXXMethod_isDefaulted(c);
+
+		auto availability = clang_getCursorAvailability(c);
+		ret.is_accessable = availability == CXAvailability_Available || availability == CXAvailability_Deprecated;
 
 		std::function<std::string(std::string_view)> replace_self_refs = [](std::string_view type_str){
 			return std::string(type_str);

@@ -299,6 +299,10 @@ namespace astpp::clang{
 				return clang_Cursor_isNull(m_handle);
 			}
 
+			bool is_valid() const noexcept{
+				return !clang_isInvalid(kind());
+			}
+
 			bool is_class_decl() const noexcept{
 				return clang_getCursorKind(m_handle) == CXCursor_ClassDecl;
 			}

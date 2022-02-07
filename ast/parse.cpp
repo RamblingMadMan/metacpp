@@ -492,20 +492,27 @@ namespace astpp::detail{
 			return std::nullopt;
 		}
 
-		clang::type base_type = c.type();
-		auto base_type_str = base_type.spelling();
+		std::string base_type_str;
 
 		bool is_template_alias = true;
 
+		clang::type base_type = c.type();
+
 		clang::cursor base_decl = clang_getTypeDeclaration(base_type);
 		if(!clang_isInvalid(base_decl.kind())){
-			std::string resolved_name = fmt::format("{}::{}", resolve_namespaces(base_decl), base_decl.spelling());
 
-			if(base_decl.kind() == CXCursor_TypeAliasDecl){
+			if(base_decl.kind() == CXCursor_TypeAliasDecl || base_decl.kind() == CXCursor_TypeAliasTemplateDecl){
 				is_template_alias = false;
+				base_type_str = c.spelling();
 			}
+			else{
+				std::string resolved_name = fmt::format("{}::{}", resolve_namespaces(base_decl), base_decl.spelling());
 
-			base_type_str = std::move(resolved_name);
+				base_type_str = std::move(resolved_name);
+			}
+		}
+		else{
+			base_type_str = base_type.spelling();
 		}
 
 		class_base_info base;

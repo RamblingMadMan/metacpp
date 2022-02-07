@@ -63,9 +63,13 @@ namespace ex{
 	};
 
 	using example_helped_alias = example_test_helped<int, std::string>;
+
+	template<typename ... Ts>
+	using example_helped_tmpl_alias = example_test_helped<int, Ts...>;
 }
 
 class example_helped_instance: public ex::example_helped_alias{};
+//class example_helped_instance1: public ex::example_helped_tmpl_alias<std::string>{};
 
 enum class example_enum{
 	case_0 = 69,

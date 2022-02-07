@@ -170,10 +170,6 @@ std::string make_method_meta(
 
 		const bool param_is_variadic = param_type.rfind("...") == (param_type.size() - 3);
 
-		if(param_is_variadic){
-			param_type = fmt::format("metapp::types<{}>", param_type);
-		}
-
 		param_metas_str += fmt::format(
 			"template<{5}> struct metapp::detail::class_method_param_info_data<{0}, {1}, {2}>{{\n"
 			"\t"	"static constexpr std::string_view name = \"{3}\";\n"
@@ -181,7 +177,8 @@ std::string make_method_meta(
 			"\t"	"using type = {4};\n"
 			"}};\n"
 			"\n",
-			full_name, idx, i, param_name, param_type,
+			full_name, idx, i, param_name,
+			param_is_variadic ? fmt::format("metapp::types<{}>", param_type) : param_type,
 			tmpl_params,
 			param_is_variadic
 		);

@@ -719,9 +719,18 @@ namespace astpp::detail{
 			auto num_spec_params = clang_Type_getNumTemplateArguments(class_type);
 			for(int i = 0; i < num_spec_params; i++){
 				clang::type spec_param_type = clang_Type_getTemplateArgumentAsType(class_type, i);
+
+				std::string spec_param_str = spec_param_type.spelling();
+
 				clang::cursor spec_param_decl = clang_getTypeDeclaration(spec_param_type);
-				const auto namespaces = resolve_namespaces(spec_param_decl);
-				ret.template_args.emplace_back(fmt::format("{}::{}", namespaces, spec_param_type.spelling()));
+				if(spec_param_decl.is_valid()){
+					const auto namespaces = resolve_namespaces(spec_param_decl);
+					if(!namespaces.empty()){
+						spec_param_str = fmt::format("{}::{}", namespaces, spec_param_str);
+					}
+				}
+
+				ret.template_args.emplace_back(std::move(spec_param_str));
 			}
 
 			std::size_t tmpl_param_idx = 0;

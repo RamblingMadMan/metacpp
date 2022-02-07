@@ -61,9 +61,11 @@ namespace ex{
 	class example_test_helped: public detail::helper_helper<meta::types<Ts...>>{
 
 	};
+
+	using example_helped_alias = example_test_helped<int, std::string>;
 }
 
-class example_helped_instance: public ex::example_test_helped<int, std::string>{};
+class example_helped_instance: public ex::example_helped_alias{};
 
 enum class example_enum{
 	case_0 = 69,

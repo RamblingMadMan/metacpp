@@ -495,9 +495,17 @@ namespace astpp::detail{
 		clang::type base_type = c.type();
 		auto base_type_str = base_type.spelling();
 
+		bool is_template_alias = true;
+
 		clang::cursor base_decl = clang_getTypeDeclaration(base_type);
 		if(!clang_isInvalid(base_decl.kind())){
-			base_type_str = fmt::format("{}::{}", resolve_namespaces(base_decl), base_decl.spelling());
+			std::string resolved_name = fmt::format("{}::{}", resolve_namespaces(base_decl), base_decl.spelling());
+
+			if(base_decl.kind() == CXCursor_TypeAliasDecl){
+				is_template_alias = false;
+			}
+
+			base_type_str = std::move(resolved_name);
 		}
 
 		class_base_info base;
@@ -532,7 +540,7 @@ namespace astpp::detail{
 
 		const auto num_tmpl_args = clang_Type_getNumTemplateArguments(base_type);
 
-		if(num_tmpl_args != -1){
+		if(is_template_alias && num_tmpl_args != -1){
 			std::string template_args_str;
 
 			for(int i = 0; i < num_tmpl_args; i++){

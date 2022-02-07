@@ -286,15 +286,35 @@ namespace reflpp{
 				return ret;
 			}
 
-			std::size_t num_params() const noexcept override{ return method_info::params::size; }
+			std::size_t num_params() const noexcept override{
+				std::size_t ret = 0;
+				metapp::for_all<typename method_info::params>([&]<typename Info>{
+					if constexpr(Info::is_variadic){
+						ret += Info::type::size;
+					}
+					else{
+						++ret;
+					}
+				});
+
+				return ret;
+			}
 
 			std::string_view param_name(std::size_t idx) const noexcept override{
 				if(idx >= num_params()) return "";
 				std::string_view ret;
-				metapp::for_all_i<typename method_info::params>([idx, &ret](auto info_type, auto info_idx){
-					if(info_idx != idx) return;
-					using info = metapp::get_t<decltype(info_type)>;
-					ret = info::name;
+				std::size_t offset = 0;
+				metapp::for_all<typename method_info::params>([&]<typename Info>{
+					if constexpr(Info::is_variadic){
+						metapp::for_all<typename Info::type>([&]<typename InnerInfo>{
+							if(offset++ != idx) return;
+							ret = InnerInfo::name;
+						});
+					}
+					else{
+						if(offset++ != idx) return;
+						ret = Info::name;
+					}
 				});
 				return ret;
 			}
@@ -302,11 +322,20 @@ namespace reflpp{
 			type_info param_type(std::size_t idx) const noexcept override{
 				if(idx >= num_params()) return nullptr;
 				type_info ret = nullptr;
-				metapp::for_all_i<typename method_info::params>([idx, &ret](auto info_type, auto info_idx){
-					if(info_idx != idx) return;
-					using info = metapp::get_t<decltype(info_type)>;
-					static const auto reflected = reflect<typename info::type>();
-					ret = reflected;
+				std::size_t offset = 0;
+				metapp::for_all<typename method_info::params>([&]<typename Info>{
+					if constexpr(Info::is_variadic){
+						metapp::for_all<typename Info::type>([&]<typename InnerInfo>{
+							if(offset++ != idx) return;
+							static const auto reflected = reflect<typename InnerInfo::type>();
+							ret = reflected;
+						});
+					}
+					else{
+						if(offset != idx) return;
+						static const auto reflected = reflect<typename Info::type>();
+						ret = reflected;
+					}
 				});
 				return ret;
 			}

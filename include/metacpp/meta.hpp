@@ -739,6 +739,7 @@ namespace metapp{
 	template<typename Class, typename MethodIdx, typename Idx>
 	struct class_method_param_info{
 		static constexpr std::string_view name = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::name;
+		static constexpr bool is_variadic = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::is_variadic;
 		using type = typename detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::type;
 	};
 

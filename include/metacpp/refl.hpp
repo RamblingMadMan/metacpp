@@ -306,9 +306,9 @@ namespace reflpp{
 				std::size_t offset = 0;
 				metapp::for_all<typename method_info::params>([&]<typename Info>{
 					if constexpr(Info::is_variadic){
-						metapp::for_all<typename Info::type>([&]<typename InnerInfo>{
+						metapp::for_all<typename Info::type>([&]<typename>{
 							if(offset++ != idx) return;
-							ret = InnerInfo::name;
+							ret = Info::name;
 						});
 					}
 					else{
@@ -325,9 +325,9 @@ namespace reflpp{
 				std::size_t offset = 0;
 				metapp::for_all<typename method_info::params>([&]<typename Info>{
 					if constexpr(Info::is_variadic){
-						metapp::for_all<typename Info::type>([&]<typename InnerInfo>{
+						metapp::for_all<typename Info::type>([&]<typename Inner>{
 							if(offset++ != idx) return;
-							static const auto reflected = reflect<typename InnerInfo::type>();
+							static const auto reflected = reflect<Inner>();
 							ret = reflected;
 						});
 					}

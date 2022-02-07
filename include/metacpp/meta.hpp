@@ -682,6 +682,7 @@ namespace metapp{
 		using type = typename detail::param_info_data<Ent, get_v<Idx>>::type;
 
 		static constexpr std::string_view name = detail::param_info_data<Ent, get_v<Idx>>::name;
+		static constexpr bool is_variadic = detail::param_info_data<Ent, get_v<Idx>>::is_variadic;
 	};
 
 	/**
@@ -922,13 +923,8 @@ namespace metapp{
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;
 
 	namespace detail{
-		template<typename Params>
+		template<typename Params, typename = void>
 		struct param_types_helper;
-
-		template<typename ... ParamInfos>
-		struct param_types_helper<types<ParamInfos...>>{
-			using type = types<typename ParamInfos::type...>;
-		};
 	}
 
 	/**
@@ -936,6 +932,25 @@ namespace metapp{
 	 */
 	template<typename Ent>
 	using param_types = typename detail::param_types_helper<typename Ent::params>::type;
+
+	namespace detail{
+		template<>
+		struct param_types_helper<types<>>{
+			using type = types<>;
+		};
+
+		template<typename Info, typename ... Infos>
+		struct param_types_helper<types<Info, Infos...>, std::enable_if_t<Info::is_variadic>>{
+			using type = join<typename Info::type, typename param_types_helper<types<Infos...>>::type>;
+		};
+
+		template<typename Info, typename ... Infos>
+		struct param_types_helper<types<Info, Infos...>, std::enable_if_t<!Info::is_variadic>>{
+				using type = join<types<typename Info::type>, typename param_types_helper<types<Infos...>>::type>;
+		};
+	}
+
+
 
 	/**
 	 * @brief Get the bases of a class.

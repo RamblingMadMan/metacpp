@@ -26,13 +26,18 @@ std::string make_function_meta(
 		auto &&param_type = fn.param_types[i];
 		auto &&param_name = fn.param_names[i];
 
+		const bool param_is_variadic = param_type.rfind("...") == (param_type.size() - 3);
+
 		output += fmt::format(
 			"template<> struct metapp::detail::param_info_data<metapp::value<({0})>, {1}>{{\n"
 			"\t"	"using type = {2};\n"
 			"\t"	"static constexpr std::string_view name = \"{0}\";\n"
+			"\t"	"static constexpr bool is_variadic = {3};\n"
 			"}};\n"
 			"\n",
-			full_name, i, param_type
+			full_name, i,
+			param_is_variadic ? fmt::format("meta::types<{}>", param_type) : param_type,
+			param_is_variadic
 		);
 
 		params_member_str += fmt::format(
@@ -84,17 +89,21 @@ std::string make_ctor_meta(
 			full_name, idx, param_idx
 		);
 
+		const bool param_is_variadic = param_type.rfind("...") == (param_type.size() - 3);
+
 		output += fmt::format(
 			"template<{0}> struct metapp::detail::param_info_data<{1}, {2}>{{\n"
 			"\t"	"using type = {3};\n"
 			"\t"	"static constexpr std::string_view name = \"{4}\";\n"
+			"\t"	"static constexpr bool is_variadic = {5};\n"
 			"}};\n"
 			"\n",
 			tmpl_params,
 			fmt::format("metapp::class_ctor_info<{}, metapp::value<{}>>", full_name, idx),
 			param_idx,
-			param_type,
-			param_name
+			param_is_variadic ? fmt::format("metapp::types<{}>", param_type) : param_type,
+			param_name,
+			param_is_variadic
 		);
 
 		++param_idx;

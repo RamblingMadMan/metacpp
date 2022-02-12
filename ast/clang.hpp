@@ -77,7 +77,13 @@ namespace astpp::clang{
 			: handle(clang_createIndex(excludeDeclarationsFromPCH, displayDiagnostics))
 			{}
 
-			index(): index(false, false){}
+			index()
+#ifndef NDEBUG
+				: index(false, true)
+#else
+				: index(false, false)
+#endif
+			{}
 	};
 
 	namespace detail{

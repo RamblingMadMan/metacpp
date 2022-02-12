@@ -477,23 +477,23 @@ namespace astpp::clang{
 					case CXError_Success: break;
 
 					case CXError_Failure:{
-						throw std::runtime_error("Failure in clang_parseTranslationUnit2");
+						throw std::runtime_error(fmt::format("Failure in clang_parseTranslationUnit2 for '{}'", path.c_str()));
 					}
 
 					case CXError_Crashed:{
-						throw std::runtime_error("libclang crashed while in clang_parseTranslationUnit2");
+						throw std::runtime_error(fmt::format("libclang crashed while in clang_parseTranslationUnit2 for '{}'", path.c_str()));
 					}
 
 					case CXError_InvalidArguments:{
-						throw std::runtime_error("clang_parseTranslationUnit2 detected that it's arguments violate the function contract");
+						throw std::runtime_error(fmt::format("clang_parseTranslationUnit2 detected that it's arguments violate the function contract for '{}'", path.c_str()));
 					}
 
 					case CXError_ASTReadError:{
-						throw std::runtime_error("An AST deserialization error occurred");
+						throw std::runtime_error(fmt::format("An AST deserialization error occurred for '{}'", path.c_str()));
 					}
 
 					default:{
-						throw std::runtime_error("Unknown error in clang_parseTranslationUnit2");
+						throw std::runtime_error(fmt::format("Unknown error in clang_parseTranslationUnit2 for '{}'", path.c_str()));
 					}
 				}
 

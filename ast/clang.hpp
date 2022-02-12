@@ -477,7 +477,27 @@ namespace astpp::clang{
 					case CXError_Success: break;
 
 					case CXError_Failure:{
-						throw std::runtime_error(fmt::format("Failure in clang_parseTranslationUnit2 for '{}'", path.c_str()));
+						std::string errMsg;
+						if(tu){
+							const unsigned int num_diag = clang_getNumDiagnostics(tu);
+
+							bool found_err = false;
+
+							for(unsigned int i = 0; i < num_diag; i++){
+								CXDiagnostic diagnotic = clang_getDiagnostic(tu, i);
+								auto err_str =
+									clang::detail::convert_str(
+										clang_formatDiagnostic(diagnotic, clang_defaultDiagnosticDisplayOptions())
+									);
+
+								errMsg += err_str;
+							}
+						}
+						else{
+							errMsg = fmt::format("Failure in clang_parseTranslationUnit2 for '{}'", path.c_str());
+						}
+
+						throw std::runtime_error(errMsg);
 					}
 
 					case CXError_Crashed:{

@@ -739,6 +739,10 @@ namespace reflpp{
 			value(value &&other) noexcept
 				: m_type(std::exchange(other.m_type, nullptr))
 			{
+				if(!m_type){
+					return;
+				}
+
 				if(m_type->size() <= 16 && m_type->alignment() <= 16){
 					std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
 				}
@@ -759,11 +763,13 @@ namespace reflpp{
 
 					m_type = std::exchange(other.m_type, nullptr);
 
-					if(m_type->size() <= 16 && m_type->alignment() <= 16){
-						std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
-					}
-					else{
-						m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);
+					if(m_type){
+						if(m_type->size() <= 16 && m_type->alignment() <= 16){
+							std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
+						}
+						else{
+							m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);
+						}
 					}
 				}
 

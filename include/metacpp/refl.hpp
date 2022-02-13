@@ -23,6 +23,7 @@
 
 namespace reflpp{
 	namespace detail{
+		struct attribute_info_helper;
 		struct type_info_helper;
 		struct num_info_helper;
 		struct int_info_helper;
@@ -39,6 +40,11 @@ namespace reflpp{
 		template<typename T, typename = void>
 		struct reflect_helper;
 	};
+
+	/**
+	 * @brief Handle to information about a type attribute.
+	 */
+	using attribute_info = const detail::attribute_info_helper*;
 
 	/**
 	 * @brief Handle to information about a type.
@@ -197,12 +203,21 @@ namespace reflpp{
 	}
 
 	namespace detail{
+		struct attribute_info_helper{
+			virtual std::string_view scope() const noexcept = 0;
+			virtual std::string_view name() const noexcept = 0;
+			virtual std::size_t num_args() const noexcept = 0;
+			virtual std::string_view arg(std::size_t idx) const noexcept = 0;
+		};
+
 		struct type_info_helper{
 			virtual std::string_view name() const noexcept = 0;
 			virtual std::size_t size() const noexcept = 0;
 			virtual std::size_t alignment() const noexcept = 0;
 			virtual void destroy(void *p) const noexcept = 0;
 			virtual void *construct(void *p, args_pack_base *args) const = 0;
+			virtual std::size_t num_attributes() const noexcept{ return 0; }
+			virtual attribute_info attribute(std::size_t idx) const noexcept{ return nullptr; }
 		};
 
 		template<typename T, typename Helper>
@@ -394,6 +409,53 @@ namespace reflpp{
 				});
 
 				register_type(this, true);
+			}
+
+			std::size_t num_attributes() const noexcept override{ return class_meta::attributes::size; }
+
+			attribute_info attribute(std::size_t idx) const noexcept override{
+				using attributes = typename class_meta::attributes;
+
+				if(idx >= num_attributes()) return nullptr;
+
+				attribute_info ret = nullptr;
+
+				metapp::for_all_i<attributes>([idx, &ret](auto info_type, auto info_idx){
+					if(ret || idx != info_idx){
+						return;
+					}
+
+					using info = metapp::get_t<decltype(info_type)>;
+
+					struct attribute_info_impl: attribute_info_helper{
+						std::string_view scope() const noexcept override{ return info::scope; }
+						std::string_view name() const noexcept override{ return info::name; }
+						std::size_t num_args() const noexcept override{ return info::args::size; }
+						std::string_view arg(std::size_t idx0) const noexcept override{
+							using arguments = typename info::args;
+
+							if(idx0 >= num_args()) return "";
+
+							std::string_view ret0;
+
+							metapp::for_all_i<arguments>([idx0, &ret0](auto info_type, auto info_idx){
+								if(!ret0.empty() || idx0 != info_idx){
+									return;
+								}
+
+								using argument = metapp::get_t<decltype(info_type)>;
+
+								ret0 = argument::value;
+							});
+
+							return ret0;
+						}
+					} static ret_val;
+
+					ret = &ret_val;
+				});
+
+				return ret;
 			}
 
 			std::size_t num_methods() const noexcept override{ return class_meta::methods::size; }

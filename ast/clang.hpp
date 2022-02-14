@@ -366,8 +366,10 @@ namespace astpp::clang{
 			explicit compilation_database(const fs::path &build_dir)
 				: handle(nullptr)
 			{
+				auto build_dir_utf8 = build_dir.u8string();
+
 				CXCompilationDatabase_Error db_err;
-				auto comp_db = clang_CompilationDatabase_fromDirectory(build_dir.c_str(), &db_err);
+				auto comp_db = clang_CompilationDatabase_fromDirectory(build_dir_utf8.c_str(), &db_err);
 
 				if(db_err != CXCompilationDatabase_NoError){
 					auto msg = fmt::format("Compilation database could not be loaded from directory '{}'", build_dir.c_str());
@@ -416,8 +418,9 @@ namespace astpp::clang{
 				std::vector<std::string> ret;
 
 				auto abs_path = fs::absolute(path);
+				auto abs_path_utf8 = abs_path.u8string();
 
-				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, abs_path.c_str());
+				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, abs_path_utf8.c_str());
 				if(cmds){
 					auto num_commands = clang_CompileCommands_getSize(cmds);
 					ret.reserve(num_commands);
@@ -470,9 +473,11 @@ namespace astpp::clang{
 
 				const auto num_options = static_cast<unsigned int>(options.size());
 
+				auto path_utf8 = path.u8string();
+
 				CXTranslationUnit tu = nullptr;
 				auto parse_err = clang_parseTranslationUnit2(
-					index, path.c_str(),
+					index, path_utf8.c_str(),
 					option_cstrs.data(), num_options,
 					nullptr, 0,
 					CXTranslationUnit_SkipFunctionBodies | CXTranslationUnit_KeepGoing,
@@ -500,26 +505,26 @@ namespace astpp::clang{
 							}
 						}
 						else{
-							errMsg = fmt::format("Failure in clang_parseTranslationUnit2 for '{}'", path.c_str());
+							errMsg = fmt::format("Failure in clang_parseTranslationUnit2 for '{}'", path_utf8);
 						}
 
 						throw std::runtime_error(errMsg);
 					}
 
 					case CXError_Crashed:{
-						throw std::runtime_error(fmt::format("libclang crashed while in clang_parseTranslationUnit2 for '{}'", path.c_str()));
+						throw std::runtime_error(fmt::format("libclang crashed while in clang_parseTranslationUnit2 for '{}'", path_utf8));
 					}
 
 					case CXError_InvalidArguments:{
-						throw std::runtime_error(fmt::format("clang_parseTranslationUnit2 detected that it's arguments violate the function contract for '{}'", path.c_str()));
+						throw std::runtime_error(fmt::format("clang_parseTranslationUnit2 detected that it's arguments violate the function contract for '{}'", path_utf8));
 					}
 
 					case CXError_ASTReadError:{
-						throw std::runtime_error(fmt::format("An AST deserialization error occurred for '{}'", path.c_str()));
+						throw std::runtime_error(fmt::format("An AST deserialization error occurred for '{}'", path_utf8.c_str()));
 					}
 
 					default:{
-						throw std::runtime_error(fmt::format("Unknown error in clang_parseTranslationUnit2 for '{}'", path.c_str()));
+						throw std::runtime_error(fmt::format("Unknown error in clang_parseTranslationUnit2 for '{}'", path_utf8));
 					}
 				}
 

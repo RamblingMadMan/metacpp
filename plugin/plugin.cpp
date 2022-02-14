@@ -12,7 +12,7 @@
 #ifdef __linux__
 #include <dlfcn.h>
 #elif defined(_WIN32)
-#include <Windows.h>
+#include <windows.h>
 #else
 #error "Unsupported operating system"
 #endif

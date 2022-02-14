@@ -372,7 +372,7 @@ namespace astpp::clang{
 				auto comp_db = clang_CompilationDatabase_fromDirectory(build_dir_utf8.c_str(), &db_err);
 
 				if(db_err != CXCompilationDatabase_NoError){
-					auto msg = fmt::format("Compilation database could not be loaded from directory '{}'", build_dir.c_str());
+					auto msg = fmt::format("Compilation database could not be loaded from directory '{}'", build_dir_utf8.c_str());
 					throw std::runtime_error(msg);
 				}
 

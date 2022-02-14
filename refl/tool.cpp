@@ -141,7 +141,11 @@ int main(int argc, char *argv[]){
 	}
 
 	fs::path output_dir = fs::path(argv[0]).parent_path();
+	std::string output_dir_utf8;
+
 	fs::path build_dir;
+	std::string build_dir_utf8;
+
 	std::vector<fs::path> headers;
 
 	headers.reserve(argc - 2); // we know argc >= 3
@@ -165,39 +169,42 @@ int main(int argc, char *argv[]){
 			}
 
 			output_dir = fs::path(argv[i]);
+			output_dir_utf8 = output_dir.u8string();
 
 			if(!fs::exists(output_dir)){
 				if(!fs::create_directory(output_dir)){
-					fmt::print(stderr, "could not create directory '{}'\n", output_dir.c_str());
+					fmt::print(stderr, "could not create directory '{}'\n", output_dir_utf8);
 					return EXIT_FAILURE;
 				}
 			}
 			else if(!fs::is_directory(output_dir)){
-				fmt::print(stderr, "'{}' is not a directory\n", output_dir.c_str());
+				fmt::print(stderr, "'{}' is not a directory\n", output_dir_utf8);
 				return EXIT_FAILURE;
 			}
 		}
 		else if(build_dir.empty()){
 			build_dir = arg;
+			build_dir_utf8 = build_dir.u8string();
 
 			if(!fs::exists(build_dir)){
-				fmt::print(stderr, "build directory '{}' does not exist\n", build_dir.c_str());
+				fmt::print(stderr, "build directory '{}' does not exist\n", build_dir_utf8);
 				return EXIT_FAILURE;
 			}
 			else if(!fs::is_directory(build_dir)){
-				fmt::print(stderr, "'{}' is not a build directory\n", build_dir.c_str());
+				fmt::print(stderr, "'{}' is not a build directory\n", build_dir_utf8);
 				return EXIT_FAILURE;
 			}
 		}
 		else{
 			fs::path header = arg;
+			auto header_utf8 = header.u8string();
 
 			if(!fs::exists(header)){
-				fmt::print(stderr, "header '{}' does not exist\n", header.c_str());
+				fmt::print(stderr, "header '{}' does not exist\n", header_utf8);
 				return EXIT_FAILURE;
 			}
 			else if(!fs::is_regular_file(header)){
-				fmt::print(stderr, "'{}' is not a header file\n", header.c_str());
+				fmt::print(stderr, "'{}' is not a header file\n", header_utf8);
 				return EXIT_FAILURE;
 			}
 
@@ -256,8 +263,11 @@ int main(int argc, char *argv[]){
 
 		out_header_path.replace_extension(fmt::format(".meta{}", header_file.extension().string()));
 
+		auto out_header_path_utf8 = out_header_path.u8string();
+
 		auto out_source_path = file_output_dir / header_file;
 		out_source_path += ".refl.cpp";
+		auto out_source_path_utf8 = out_source_path.u8string();
 
 		std::string ctor_calls;
 		auto namespace_refl = make_namespace_refl(info.global, ctor_calls);
@@ -290,15 +300,17 @@ int main(int argc, char *argv[]){
 		);
 
 		auto out_header_dir = out_source_path.parent_path();
+		auto out_header_dir_utf8 = out_header_dir.u8string();
+
 		if(!fs::exists(out_header_dir) && !fs::create_directories(out_header_dir)){
-			fmt::print(stderr, "could not create directory '{}'\n", out_header_dir.c_str());
+			fmt::print(stderr, "could not create directory '{}'\n", out_header_dir_utf8);
 			return EXIT_FAILURE;
 		}
 
 		{
 			std::ofstream out_source_file(out_source_path);
 			if(!out_source_file ){
-				fmt::print(stderr, "could not create output file '{}'\n", out_source_path.c_str());
+				fmt::print(stderr, "could not create output file '{}'\n", out_source_path_utf8);
 				return EXIT_FAILURE;
 			}
 
@@ -308,7 +320,7 @@ int main(int argc, char *argv[]){
 		{
 			std::ofstream out_header_file(out_header_path);
 			if(!out_header_file ){
-				fmt::print(stderr, "could not create output file '{}'\n", out_header_path.c_str());
+				fmt::print(stderr, "could not create output file '{}'\n", out_header_path_utf8);
 				return EXIT_FAILURE;
 			}
 

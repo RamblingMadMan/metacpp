@@ -954,16 +954,17 @@ namespace astpp::detail{
 ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 	using namespace astpp;
 
+	auto path_utf8 = path.u8string();
 	auto abs_path = fs::absolute(path);
 
 	static clang::index index;
 
 	if(!fs::exists(path)){
-		auto msg = fmt::format("File '{}' does not exist", path.c_str());
+		auto msg = fmt::format("File '{}' does not exist", path_utf8);
 		throw std::runtime_error(msg);
 	}
 	else if(!fs::is_regular_file(path)){
-		auto msg = fmt::format("'{}' is not a regular file", path.c_str());
+		auto msg = fmt::format("'{}' is not a regular file", path_utf8);
 		throw std::runtime_error(msg);
 	}
 
@@ -1012,7 +1013,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 	}
 
 	for(auto &&dir : include_dirs){
-		options.emplace_back(fmt::format("-I{}", dir.c_str()));
+		auto dir_utf8 = dir.u8string();
+		options.emplace_back(fmt::format("-I{}", dir_utf8));
 	}
 
 	if(!standard_given){

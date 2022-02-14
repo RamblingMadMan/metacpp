@@ -9,7 +9,62 @@
 #include "boost/dll/shared_library.hpp"
 #include "boost/dll/runtime_symbol_info.hpp"
 
+#ifdef __linux__
 #include <dlfcn.h>
+#elif defined(_WIN32)
+#include <Windows.h>
+#else
+#error "Unsupported operating system"
+#endif
+
+namespace pluginpp::detail{
+#ifdef __linux__
+	using LibHandle = void*;
+#else
+	using LibHandle = HMODULE;
+#endif
+
+	static LibHandle load_library(const char *path){
+#ifdef __linux__
+		return dlopen(path, RTLD_LAZY);
+#else
+		return path ? LoadLibraryA(path) : GetModuleHandleA(nullptr);
+#endif
+	}
+
+	static bool close_library(LibHandle handle){
+#ifdef __linux__
+		return dlclose(handle) == 0;
+#else
+		return (handle == GetModuleHandleA(nullptr)) ? true : FreeLibrary(handle);
+#endif
+	}
+
+	static void *get_symbol(LibHandle lib, const char *name){
+#ifdef __linux__
+		return dlsym(lib, name);
+#else
+		return reinterpret_cast<void*>(GetProcAddress(lib, name));
+#endif
+	}
+
+	static const char *get_error(){
+#ifdef __linux__
+		return dlerror();
+#else
+		thread_local char buf[256];
+		FormatMessage(
+			FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			nullptr, GetLastError(),
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			buf, sizeof(buf),
+			nullptr
+		);
+
+		return buf;
+#endif
+	}
+}
 
 namespace fs = std::filesystem;
 namespace dll = boost::dll;
@@ -32,10 +87,10 @@ namespace {
 	class dynamic_library: public library{
 		public:
 			explicit dynamic_library(self_t)
-				: m_handle(dlopen(nullptr, RTLD_LAZY))
+				: m_handle(detail::load_library(nullptr))
 			{
 				if(!m_handle){
-					auto msg = fmt::format("Error in dlopen: {}", dlerror());
+					auto msg = fmt::format("Error in load_library: {}", detail::get_error());
 					throw std::runtime_error(msg);
 				}
 
@@ -46,11 +101,12 @@ namespace {
 				import_entities();
 			}
 
-			explicit dynamic_library(const fs::path &path)
-				: m_handle(dlopen(path.c_str(), RTLD_LAZY))
-			{
+			explicit dynamic_library(const fs::path &path){
+				auto path_utf8 = path.u8string();
+
+				m_handle = detail::load_library(path_utf8.c_str());
 				if(!m_handle){
-					auto msg = fmt::format("Error in dlopen: {}", dlerror());
+					auto msg = fmt::format("Error in load_library: {}", detail::get_error());
 					throw std::runtime_error(msg);
 				}
 
@@ -106,9 +162,9 @@ namespace {
 			void *get_symbol(const std::string &name) const noexcept override{
 				if(!is_valid()) return nullptr;
 
-				auto sym = dlsym(m_handle, name.c_str());
+				auto sym = detail::get_symbol(m_handle, name.c_str());
 				if(!sym){
-					print_error("Error in dlsym: {}", dlerror());
+					print_error("Error in get_symbol: {}", dlerror());
 				}
 
 				return sym;
@@ -145,8 +201,8 @@ namespace {
 			void reset(void *handle = nullptr){
 				auto old_handle = std::exchange(m_handle, handle);
 
-				if(old_handle && (dlclose(old_handle) != 0)){
-					print_error("Error in dlclose: {}", dlerror());
+				if(old_handle && !detail::close_library(old_handle)){
+					print_error("Error in close_library: {}", detail::get_error());
 				}
 			}
 

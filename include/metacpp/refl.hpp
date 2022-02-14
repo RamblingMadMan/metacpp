@@ -763,6 +763,26 @@ namespace reflpp{
 
 		using type_export_fn = type_info(*)();
 		using function_export_fn = function_info(*)();
+
+		static void *aligned_alloc(std::size_t align, std::size_t len){
+#ifdef __linux__
+			return ::aligned_alloc(align, len);
+#elif defined(_WIN32)
+			return _aligned_malloc(len, align);
+#else
+			return std::aligned_alloc(align, len);
+#endif
+		}
+
+		static void aligned_free(void *p){
+#ifdef __linux__
+			::free(p);
+#elif defined(_WIN32)
+			_aligned_free(p);
+#else
+			std::free(p);
+#endif
+		}
 	}
 
 	/**
@@ -904,7 +924,7 @@ namespace reflpp{
 				}
 				else{
 					m_type->destroy(m_storage.pointer);
-					std::free(m_storage.pointer);
+					detail::aligned_free(m_storage.pointer);
 				}
 
 				m_type = nullptr;
@@ -923,7 +943,7 @@ namespace reflpp{
 					}
 				}
 				else{
-					m_storage.pointer = std::aligned_alloc(type_->alignment(), type_->size());
+					m_storage.pointer = detail::aligned_alloc(type_->alignment(), type_->size());
 					if(!type_->construct(m_storage.pointer, &pack)){
 						throw std::runtime_error("Could not construct value");
 					}

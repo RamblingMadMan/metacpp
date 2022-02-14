@@ -804,7 +804,7 @@ namespace reflpp{
 					new(m_storage.bytes) T(std::forward<Args>(args)...);
 				}
 				else{
-					m_storage.pointer = std::aligned_alloc(alignof(T), sizeof(T));
+					m_storage.pointer = detail::aligned_alloc(alignof(T), sizeof(T));
 					new(m_storage.pointer) T(std::forward<Args>(args)...);
 				}
 			}

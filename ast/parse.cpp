@@ -1037,6 +1037,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 			"clang invocation for {}:{}\n",
 			path_utf8, options_str
 		);
+
+		std::fflush(stdout);
 	}
 
 	clang::translation_unit tu(index, path, options);

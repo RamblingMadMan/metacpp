@@ -1007,7 +1007,9 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 					(opt_prefix == "-I") ||
 					(opt_prefix[0] == '@') || // @ at the start of response files (just in case)
 					(opt == "-flto") ||
-					(opt == "-fno-fat-lto-objects")
+					(opt == "-fno-fat-lto-objects") ||
+					(std::string_view(opt).substr(0, 9) == "--target=") ||
+					(std::string_view(opt).substr(0, 14) == "--driver-mode=")
 				;
 			}
 		);

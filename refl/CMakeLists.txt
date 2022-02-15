@@ -15,6 +15,13 @@ set_target_properties(
 	metacpp-refl PROPERTIES POSITION_INDEPENDENT_CODE ON
 )
 
+if(CMAKE_CROSSCOMPILING AND WIN32)
+	find_program(REFLPP_EXECUTABLE_RES reflpp REQUIRED)
+	set(REFLPP_EXECUTABLE ${REFLPP_EXECUTABLE_RES} PARENT_SCOPE)
+else()
+	set(REFLPP_EXECUTABLE reflpp PARENT_SCOPE)
+endif()
+
 add_executable(reflpp tool.cpp)
 
 add_executable(metacpp::refl-tool ALIAS reflpp)
@@ -29,13 +36,6 @@ if(METACPP_IPO_SUPPORTED)
 	set_target_properties(
 		reflpp PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON
 	)
-endif()
-
-if(CMAKE_CROSSCOMPILING AND WIN32)
-	find_program(REFLPP_EXECUTABLE_RES reflpp.exe REQUIRED)
-	set(REFLPP_EXECUTABLE ${REFLPP_EXECUTABLE_RES} PARENT_SCOPE)
-else()
-	set(REFLPP_EXECUTABLE reflpp PARENT_SCOPE)
 endif()
 
 function(target_reflect tgt)

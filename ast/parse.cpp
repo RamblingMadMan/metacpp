@@ -1000,7 +1000,10 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info){
 	while(1){
 		auto res = std::find_if(
 			options.begin(), options.end(),
-			[](auto &&opt){ return std::string_view(opt).substr(0, 2) == "-I"; }
+			[](auto &&opt){
+				auto opt_prefix = std::string_view(opt).substr(0, 2);
+				return (opt_prefix == "-I") || (opt_prefix[0] == '@'); // @ at the start of weird .rsp files
+			}
 		);
 		if(res == options.end()) break;
 		else options.erase(res);

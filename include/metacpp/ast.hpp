@@ -256,7 +256,7 @@ namespace astpp{
 	};
 
 	enum class cppstd{
-		_11, _14, _17, _20
+		_11, gnu11, _14, gnu14, _17, gnu17, _20, gnu20,
 	};
 
 	class compile_info{

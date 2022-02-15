@@ -11,6 +11,7 @@
 #include <iostream>
 #include <optional>
 #include <set>
+#include <unordered_set>
 
 #include "fmt/format.h"
 
@@ -1002,15 +1003,23 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 			options.begin(), options.end(),
 			[](auto &&opt){
 				auto opt_prefix = std::string_view(opt).substr(0, 2);
-				return (opt_prefix == "-I") || (opt_prefix[0] == '@'); // @ at the start of weird .rsp files
+				return
+					(opt_prefix == "-I") ||
+					(opt_prefix[0] == '@') || // @ at the start of response files (just in case)
+					(opt == "-flto") ||
+					(opt == "-fno-fat-lto-objects")
+				;
 			}
 		);
 		if(res == options.end()) break;
 		else options.erase(res);
 	}
 
+	std::unordered_set<std::string_view> standards;
+
 	for(auto &&opt : options){
 		if(std::string_view(opt).substr(0, 5) == "-std="){
+			standards.emplace(opt);
 			standard_given = true;
 		}
 	}

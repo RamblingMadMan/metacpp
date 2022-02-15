@@ -4,7 +4,7 @@
 
 find_package(Clang REQUIRED)
 
-add_library(metacpp-ast clang.hpp compile_info.cpp parse.cpp)
+add_library(metacpp-ast STATIC clang.hpp compile_info.cpp parse.cpp)
 add_library(metacpp::ast ALIAS metacpp-ast)
 add_library(metapp::ast ALIAS metacpp-ast)
 

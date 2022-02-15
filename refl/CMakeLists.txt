@@ -15,7 +15,15 @@ set_target_properties(
 	metacpp-refl PROPERTIES POSITION_INDEPENDENT_CODE ON
 )
 
+if(CMAKE_CROSSCOMPILING)
+	add_executable(reflpp-host tool.cpp)
+else()
+
+endif()
+
 add_executable(reflpp tool.cpp)
+
+add_executable(metacpp::refl-tool ALIAS reflpp)
 add_executable(metacpp::refl-tool ALIAS reflpp)
 add_executable(metapp::refl-tool ALIAS reflpp)
 

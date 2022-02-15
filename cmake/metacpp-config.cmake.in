@@ -1,0 +1,8 @@
+set(metacpp_VERSION @metacpp_VERSION_MAJOR@.@metacpp_VERSION_MINOR@.@metacpp_VERSION_PATCH@)
+
+@PACKAGE_INIT@
+
+set_and_check(metacpp_INCLUDE_DIR "@CMAKE_INSTALL_INCLUDEDIR@")
+set_and_check(metacpp_SYSCONFIG_DIR "@CMAKE_INSTALL_SYSCONFDIR@")
+
+check_required_components(metacpp)

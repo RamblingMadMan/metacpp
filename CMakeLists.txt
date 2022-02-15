@@ -127,3 +127,42 @@ add_subdirectory(refl)
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)
 endif()
+
+########################
+# Project Installation #
+########################
+
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
+set(METACPP_INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE STRING "Where to install header files")
+set(METACPP_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE STRING "Where to install libraries")
+set(METACPP_INSTALL_SYSCONFDIR ${CMAKE_INSTALL_SYSCONFDIR} CACHE STRING "Where to install configuration files")
+
+configure_package_config_file(
+	${CMAKE_CURRENT_LIST_DIR}/cmake/metacpp-config.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/metacpp-config.cmake
+	INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/metacpp/cmake
+	PATH_VARS METACPP_INCLUDE_INSTALL_DIR METACPP_INSTALL_SYSCONFDIR
+)
+
+write_basic_package_version_file(
+	${CMAKE_CURRENT_BINARY_DIR}/metacpp-config-version.cmake
+	VERSION "${metacpp_VERSION_MAJOR}.${metacpp_VERSION_MINOR}.${metacpp_VERSION_PATCH}"
+	COMPATIBILITY SameMajorVersion
+)
+
+install(TARGETS reflpp metacpp-ast metacpp-refl metacpp-plugin)
+
+install(
+	DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/metacpp"
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+	FILES_MATCHING PATTERN "*.hpp"
+)
+
+install(
+	FILES
+		${CMAKE_CURRENT_BINARY_DIR}/metacpp-config.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/metacpp-config-version.cmake
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/metacpp/cmake
+)

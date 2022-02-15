@@ -274,7 +274,7 @@ namespace astpp{
 			std::unique_ptr<data> impl;
 	};
 
-	info_map parse(const std::filesystem::path &path, const compile_info &info);
+	info_map parse(const std::filesystem::path &path, const compile_info &info, bool verbose = false);
 }
 
 namespace METACPP_AST_NAMESPACE = astpp;

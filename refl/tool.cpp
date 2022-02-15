@@ -131,7 +131,7 @@ void print_version(){
 }
 
 void print_usage(const char *argv0, std::FILE *out = stdout){
-	fmt::print(out, "Usage: {} [-o <out-dir>] <build-dir> header [other-headers ..]\n", argv0);
+	fmt::print(out, "Usage: {} [-v|--version] [-d|--debug] [-o <out-dir>] <build-dir> header [other-headers ..]\n", argv0);
 }
 
 int main(int argc, char *argv[]){
@@ -139,6 +139,8 @@ int main(int argc, char *argv[]){
 		print_usage(argv[0], stderr);
 		return EXIT_FAILURE;
 	}
+
+	bool verbose = false;
 
 	fs::path output_dir = fs::path(argv[0]).parent_path();
 	std::string output_dir_utf8;
@@ -180,6 +182,14 @@ int main(int argc, char *argv[]){
 			else if(!fs::is_directory(output_dir)){
 				fmt::print(stderr, "'{}' is not a directory\n", output_dir_utf8);
 				return EXIT_FAILURE;
+			}
+		}
+		else if(arg == "-d" || arg == "--debug"){
+			verbose = true;
+
+			if(!version_printed){
+				print_version();
+				version_printed = true;
 			}
 		}
 		else if(build_dir.empty()){
@@ -238,7 +248,7 @@ int main(int argc, char *argv[]){
 	for(const auto &header : headers){
 		const auto abs_header = fs::absolute(header).string();
 
-		auto info = ast::parse(header, compile_info);
+		auto info = ast::parse(header, compile_info, verbose);
 
 		auto file_output_dir = output_dir;
 

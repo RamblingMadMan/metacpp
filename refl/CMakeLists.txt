@@ -16,9 +16,9 @@ set_target_properties(
 )
 
 if(CMAKE_CROSSCOMPILING)
-	add_executable(reflpp-host tool.cpp)
+	find_program(REFLPP_EXECUTABLE reflpp REQUIRED)
 else()
-
+	set(REFLPP_EXECUTABLE reflpp)
 endif()
 
 add_executable(reflpp tool.cpp)
@@ -178,7 +178,7 @@ function(target_reflect tgt)
 		add_custom_command(
 			OUTPUT ${OUTPUT_SOURCES} ${OUTPUT_HEADERS}
 			DEPENDS reflpp ${INPUT_HEADERS}
-			COMMAND reflpp -o "${OUTPUT_DIR}" "${PROJECT_BINARY_DIR}" ${INPUT_HEADERS}
+			COMMAND ${REFLPP_EXECUTABLE} -o "${OUTPUT_DIR}" "${PROJECT_BINARY_DIR}" ${INPUT_HEADERS}
 			WORKING_DIRECTORY ${TGT_SOURCE_DIR}
 			VERBATIM
 		)

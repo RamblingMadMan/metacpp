@@ -19,12 +19,12 @@
 
 namespace pluginpp::detail{
 #ifdef __linux__
-	using LibHandle = void*;
+	using lib_handle = void*;
 #else
-	using LibHandle = HMODULE;
+	using lib_handle = HMODULE;
 #endif
 
-	static LibHandle load_library(const char *path){
+	static lib_handle load_library(const char *path){
 #ifdef __linux__
 		return dlopen(path, RTLD_LAZY);
 #else
@@ -32,7 +32,7 @@ namespace pluginpp::detail{
 #endif
 	}
 
-	static bool close_library(LibHandle handle){
+	static bool close_library(lib_handle handle){
 #ifdef __linux__
 		return dlclose(handle) == 0;
 #else
@@ -40,7 +40,7 @@ namespace pluginpp::detail{
 #endif
 	}
 
-	static void *get_symbol(LibHandle lib, const char *name){
+	static void *get_symbol(lib_handle lib, const char *name){
 #ifdef __linux__
 		return dlsym(lib, name);
 #else
@@ -104,7 +104,7 @@ namespace {
 			explicit dynamic_library(const fs::path &path){
 				auto path_utf8 = path.u8string();
 
-				m_handle = detail::load_library(path_utf8.c_str());
+				m_handle = detail::load_library(path.u8string().c_str());
 				if(!m_handle){
 					auto msg = fmt::format("Error in load_library: {}", detail::get_error());
 					throw std::runtime_error(msg);
@@ -164,7 +164,7 @@ namespace {
 
 				auto sym = detail::get_symbol(m_handle, name.c_str());
 				if(!sym){
-					print_error("Error in get_symbol: {}", dlerror());
+					print_error("Error in get_symbol: {}", detail::get_error());
 				}
 
 				return sym;
@@ -206,7 +206,7 @@ namespace {
 				}
 			}
 
-			void *m_handle;
+			detail::lib_handle m_handle;
 			std::vector<std::string> m_symbols;
 			std::vector<refl::type_info> m_types;
 			std::vector<refl::function_info> m_fns;
@@ -218,11 +218,11 @@ namespace {
 
 			const dynamic_library *load(const fs::path &path){
 				if(!fs::exists(path)){
-					print_error("Plugin path '{}' does not exist", path.c_str());
+					print_error("Plugin path '{}' does not exist", path.u8string());
 					return nullptr;
 				}
 				else if(!fs::is_regular_file(path)){
-					print_error("Plugin path '{}' is not a file", path.c_str());
+					print_error("Plugin path '{}' is not a file", path.u8string());
 					return nullptr;
 				}
 

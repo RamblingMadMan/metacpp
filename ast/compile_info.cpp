@@ -45,6 +45,9 @@ std::vector<std::filesystem::path> compile_info::all_include_dirs() const{
 		}
 	}
 
+	std::sort(ret.begin(), ret.end());
+	ret.erase(std::unique(ret.begin(), ret.end()), ret.end());
+
 	return ret;
 }
 

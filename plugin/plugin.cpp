@@ -198,7 +198,7 @@ namespace {
 				}
 			}
 
-			void reset(void *handle = nullptr){
+			void reset(detail::lib_handle handle = nullptr){
 				auto old_handle = std::exchange(m_handle, handle);
 
 				if(old_handle && !detail::close_library(old_handle)){
@@ -227,13 +227,14 @@ namespace {
 				}
 
 				auto abs_path = fs::absolute(path);
+				auto abs_path_utf8 = abs_path.u8string();
 
-				auto res = m_libraries.find(abs_path);
+				auto res = m_libraries.find(abs_path_utf8);
 				if(res != m_libraries.end()){
 					return &res->second;
 				}
 
-				auto emplace_res = m_libraries.try_emplace(abs_path, abs_path);
+				auto emplace_res = m_libraries.try_emplace(abs_path_utf8, abs_path);
 				if(!emplace_res.second){
 					print_error("Internal error in std::unordered_map::try_emplace");
 					return nullptr;

@@ -127,7 +127,11 @@ std::string make_namespace_refl(const ast::namespace_info &ns, std::string &ctor
 }
 
 void print_version(){
-	fmt::print(METACPP_VERSION_STR "\n");
+	fmt::print(
+		METACPP_VERSION_STR "\n"
+		"Compiler: {}\n",
+		ast::compiler_version()
+	);
 }
 
 void print_usage(const char *argv0, std::FILE *out = stdout){

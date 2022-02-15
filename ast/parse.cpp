@@ -1096,3 +1096,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 
 	return ret;
 }
+
+std::string astpp::compiler_version(){
+	return clang::version();
+}

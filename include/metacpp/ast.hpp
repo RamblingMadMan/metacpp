@@ -275,6 +275,8 @@ namespace astpp{
 	};
 
 	info_map parse(const std::filesystem::path &path, const compile_info &info, bool verbose = false);
+
+	std::string compiler_version();
 }
 
 namespace METACPP_AST_NAMESPACE = astpp;

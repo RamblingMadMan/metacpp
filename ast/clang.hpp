@@ -535,6 +535,10 @@ namespace astpp::clang{
 				return clang_getTranslationUnitCursor(*this);
 			}
 	};
+
+	inline std::string version(){
+		return detail::convert_str(clang_getClangVersion());
+	}
 }
 
 #endif // !METACPP_AST_CLANG_HPP

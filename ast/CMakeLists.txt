@@ -2,7 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-find_package(Clang REQUIRED)
+SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+
+find_package(Clang CONFIG REQUIRED)
 
 add_library(metacpp-ast STATIC clang.hpp compile_info.cpp parse.cpp)
 add_library(metacpp::ast ALIAS metacpp-ast)

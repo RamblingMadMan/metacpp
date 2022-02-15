@@ -993,19 +993,6 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 	auto include_dirs = info.all_include_dirs();
 	auto options = info.file_options(path);
 
-	if(verbose){
-		std::string options_str;
-
-		for(auto &&opt : options){
-			options_str += fmt::format(" {}", opt);
-		}
-
-		fmt::print(
-			"clang invocation for {}:{}\n",
-			path_utf8, options_str
-		);
-	}
-
 	options.emplace_back("-DMETACPP_TOOL_RUN");
 
 	bool standard_given = false;
@@ -1038,6 +1025,19 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 	}
 
 	options.emplace_back("-Wno-ignored-optimization-argument");
+
+	if(verbose){
+		std::string options_str;
+
+		for(auto &&opt : options){
+			options_str += fmt::format(" {}", opt);
+		}
+
+		fmt::print(
+			"clang invocation for {}:{}\n",
+			path_utf8, options_str
+		);
+	}
 
 	clang::translation_unit tu(index, path, options);
 

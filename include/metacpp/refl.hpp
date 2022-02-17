@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <climits>
+#include <functional>
 
 #include "meta.hpp"
 
@@ -143,12 +144,20 @@ namespace reflpp{
 	 */
 	bool has_base(class_info type, class_info base) noexcept;
 
+	namespace detail{
+		template<typename T>
+		struct arg_type_helper{ using type = T; };
+
+		template<typename T>
+		struct arg_type_helper<std::reference_wrapper<T>>{ using type = T; };
+	}
+
 	/**
 	 * @brief Helper type for dynamically passing arguments.
 	 */
 	struct args_pack_base{
 		virtual std::size_t size() const noexcept = 0;
-		virtual void *arg(std::size_t idx) const noexcept = 0;
+		//virtual void *arg(std::size_t idx) const noexcept = 0;
 		virtual type_info arg_type(std::size_t idx) const noexcept = 0;
 		virtual class_info this_type() const noexcept = 0;
 	};
@@ -156,13 +165,15 @@ namespace reflpp{
 	template<typename ... Args>
 	struct args_pack: args_pack_base{
 		public:
+			using arg_types = metapp::types<Args...>;
+
 			template<typename ... UArgs>
 			explicit args_pack(UArgs &&... args)
-				: args_pack(std::make_index_sequence<sizeof...(Args)>(), std::forward<UArgs>(args)...)
+				: args_pack(std::make_index_sequence<sizeof...(UArgs)>(), std::forward<UArgs>(args)...)
 			{}
 
 			std::size_t size() const noexcept override{ return sizeof...(Args); }
-			void *arg(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_ptrs[idx]; }
+			//void *arg(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_ptrs[idx]; }
 			type_info arg_type(std::size_t idx) const noexcept{ return idx >= size() ? nullptr : m_types[idx]; }
 
 			class_info this_type() const noexcept override{ return reflect<args_pack<Args...>>(); }
@@ -176,18 +187,16 @@ namespace reflpp{
 			template<std::size_t ... Is, typename ... UArgs>
 			args_pack(std::index_sequence<Is...>, UArgs &&... args)
 				: m_vals(std::forward_as_tuple(std::forward<UArgs>(args)...))
-				, m_ptrs{ &std::get<Is>(m_vals)... }
-				, m_types{ reflect<std::tuple_element_t<Is, decltype(m_vals)>>()... }
+				, m_types{ reflect<meta::get_t<arg_types, Is>>()... }
 			{}
 
 			template<typename Fn, std::size_t ... Is>
 			decltype(auto) apply_impl(Fn &&f, std::index_sequence<Is...>){
-				return std::forward<Fn>(f)(std::move(*reinterpret_cast<metapp::get_t<value_types, Is>*>(m_ptrs[Is]))...);
+				return std::forward<Fn>(f)(static_cast<Args>(std::get<Is>(m_vals))...);
 			}
 
 			using value_types = metapp::types<std::decay_t<Args>...>;
-			std::tuple<std::decay_t<Args>...> m_vals;
-			void *m_ptrs[sizeof...(Args)];
+			std::tuple<Args...> m_vals;
 			type_info m_types[sizeof...(Args)];
 	};
 
@@ -199,7 +208,7 @@ namespace reflpp{
 	 */
 	template<typename ... Args>
 	auto pack_args(Args &&... args){
-		return args_pack<std::decay_t<Args>...>(std::forward<Args>(args)...);
+		return args_pack<typename detail::arg_type_helper<Args>::type...>(std::forward<Args>(args)...);
 	}
 
 	namespace detail{

@@ -257,6 +257,27 @@ namespace metapp{
 			using type = types<Ts..., U>;
 		};
 
+		template<typename L>
+		struct tail_helper;
+
+		template<typename T, typename ... Ts>
+		struct tail_helper<types<T, Ts...>>{
+			using type = types<Ts...>;
+		};
+
+		template<typename L, typename Ret = types<>>
+		struct init_helper;
+
+		template<typename T0, typename T1, typename ... Ts, typename ... Us>
+		struct init_helper<types<T0, T1, Ts...>, types<Us...>>{
+			using type = typename init_helper<types<T1, Ts...>, types<Us..., T0>>::type;
+		};
+
+		template<typename T, typename ... Us>
+		struct init_helper<types<T>, types<Us...>>{
+			using type = types<Us...>;
+		};
+
 		template<typename T>
 		struct template_args_helper;
 
@@ -271,6 +292,18 @@ namespace metapp{
 
 	template<typename ... Ls>
 	using join = typename detail::join_helper<Ls...>::type;
+
+	template<typename L>
+	using head = get_t<L, 0>;
+
+	template<typename L>
+	using tail = typename detail::tail_helper<L>::type;
+
+	template<typename L>
+	using init = typename detail::init_helper<L>::type;
+
+	template<typename L>
+	using last = get_t<L, L::size - 1>;
 
 	template<typename T>
 	using template_args = typename detail::template_args_helper<T>::type;

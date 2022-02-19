@@ -241,6 +241,22 @@ namespace metapp{
 	}
 
 	namespace detail{
+		template<typename L, typename T>
+		struct contains_helper;
+
+		template<typename T, typename ... Ts, typename U>
+		struct contains_helper<types<T, Ts...>, U>: contains_helper<types<Ts...>, U>{};
+
+		template<typename T>
+		struct contains_helper<types<>, T>{
+			static constexpr bool value = false;
+		};
+
+		template<typename T, typename ... Ts>
+		struct contains_helper<types<T, Ts...>, T>{
+			static constexpr bool value = true;
+		};
+
 		template<typename ... Ls>
 		struct join_helper;
 
@@ -286,6 +302,9 @@ namespace metapp{
 			using type = types<Ts...>;
 		};
 	}
+
+	template<typename L, typename T>
+	inline constexpr bool contains = detail::contains_helper<L, T>::value;
 
 	template<typename L, typename T>
 	using append = typename detail::append_helper<L, T>::type;

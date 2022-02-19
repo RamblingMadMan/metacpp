@@ -51,6 +51,28 @@ namespace astpp::detail{
 
 	std::optional<entity> try_parse(const fs::path &path, info_map &infos, clang::cursor c, namespace_info *ns);
 
+	// TODO: optimize these trim functions
+
+	std::string ltrim(std::string str){
+		while(!str.empty() && str.front() == ' '){
+			str.erase(str.begin());
+		}
+
+		return str;
+	}
+
+	std::string rtrim(std::string str){
+		while(!str.empty() && str.back() == ' '){
+			str.erase(str.rbegin().base());
+		}
+
+		return str;
+	}
+
+	std::string trim(std::string str){
+		return rtrim(ltrim(std::move(str)));
+	}
+
 	std::vector<std::string> parse_attrib_args(const fs::path &path, clang::token_iterator &it, clang::token_iterator end){
 		std::vector<std::string> ret;
 
@@ -60,23 +82,29 @@ namespace astpp::detail{
 			auto tok_str = it->str();
 
 			if(tok_str == "("){
+				arg_str += tok_str;
+
 				++depth;
 			}
 			else if(tok_str == ")"){
 				--depth;
 				if(depth == 0){
 					if(!arg_str.empty()){
-						ret.emplace_back(std::move(arg_str));
+						ret.emplace_back(trim(std::move(arg_str)));
 					}
 					++it;
 					break;
 				}
+				else{
+					arg_str += tok_str;
+				}
 			}
 			else if(tok_str == "," && depth == 1){
-				ret.emplace_back(std::move(arg_str));
+				ret.emplace_back(trim(std::move(arg_str)));
 				arg_str = "";
 			}
 			else{
+				arg_str += " ";
 				arg_str += tok_str;
 			}
 

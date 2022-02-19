@@ -18,6 +18,8 @@ class [[my::attrib(1, "2", 3.0)]] example{
 		void method1(const std::string &str) noexcept;
 
 		std::tuple<int, float, char> method2();
+
+		static float testVal() noexcept{ return 42.f; }
 };
 
 enum class example_enum{

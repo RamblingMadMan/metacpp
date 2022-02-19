@@ -224,7 +224,7 @@ std::string make_method_meta(
 	return fmt::format(
 		"{7}"
 		"template<{10}> struct metapp::detail::class_method_info_data<{0}, {1}>{{\n"
-		"\t"	"using ptr_type = {3}({0}::*)({4}){6};\n"
+		"\t"	"using ptr_type = {3}({12}*)({4}){6};\n"
 		"\t"	"using result = {9};\n"
 		"\t"	"using param_types = metapp::types<{4}>;\n"
 		"\t"	"using params = metapp::types<{8}>;\n"
@@ -242,7 +242,8 @@ std::string make_method_meta(
 		params_member_str,
 		m.result_type,
 		tmpl_params,
-		ptr_str
+		ptr_str,
+		m.is_static ? "" : fmt::format("{}::", full_name)
 	);
 }
 

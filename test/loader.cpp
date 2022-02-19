@@ -22,6 +22,13 @@ int main(int argc, char *argv[]){
 		plugin::load(path);
 	}
 
+	refl::class_info example_cls;
+	assert(example_cls = refl::reflect_class("example"));
+
+	assert(
+		(refl::attribute(example_cls, "my::attrib") == std::vector<std::string_view>{ "1", "\"2\"", "3.0" })
+	);
+
 	refl::class_info helped_cls;
 	assert(helped_cls = refl::reflect_class("example_helped_instance"));
 

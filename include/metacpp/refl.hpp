@@ -23,9 +23,26 @@
  */
 
 namespace reflpp{
+	struct args_pack_base;
+
 	namespace detail{
-		struct attribute_info_helper;
-		struct type_info_helper;
+		struct attribute_info_helper{
+			virtual std::string_view scope() const noexcept = 0;
+			virtual std::string_view name() const noexcept = 0;
+			virtual std::size_t num_args() const noexcept = 0;
+			virtual std::string_view arg(std::size_t idx) const noexcept = 0;
+		};
+
+		struct type_info_helper{
+			virtual std::string_view name() const noexcept = 0;
+			virtual std::size_t size() const noexcept = 0;
+			virtual std::size_t alignment() const noexcept = 0;
+			virtual void destroy(void *p) const noexcept = 0;
+			virtual void *construct(void *p, args_pack_base *args) const = 0;
+			virtual std::size_t num_attributes() const noexcept{ return 0; }
+			virtual const attribute_info_helper *attribute(std::size_t idx) const noexcept{ return nullptr; }
+		};
+
 		struct num_info_helper;
 		struct int_info_helper;
 		struct function_info_helper;
@@ -116,7 +133,7 @@ namespace reflpp{
 	 * @brief Helper function for reflecting enum types.
 	 * @see reflect_enum
 	 */
-	inline enum_info enum_(std::string_view name){ return reflect_enum(name); }
+	inline enum_info enum_(std::string_view name){ return reflect_enum(name); }	
 
 	/**
 	 * @brief Get information about a function from it's pointer.
@@ -126,6 +143,15 @@ namespace reflpp{
 	function_info reflect(Ret(*ptr)(Args...)){
 		return nullptr;
 	}
+
+	/**
+	 * @brief Get an attributes arguments from a type
+	 * @param t type to query
+	 * @param name name of the attribute to get
+	 * @param placeholder_ values to return if the attribute doesn't exist
+	 * @returns attribute arguments or placeholder values
+	 */
+	std::vector<std::string_view> attribute(type_info t, std::string_view name, std::vector<std::string_view> placeholder_ = {});
 
 	/**
 	 * @brief Get dynamic type information for a known type.
@@ -212,23 +238,6 @@ namespace reflpp{
 	}
 
 	namespace detail{
-		struct attribute_info_helper{
-			virtual std::string_view scope() const noexcept = 0;
-			virtual std::string_view name() const noexcept = 0;
-			virtual std::size_t num_args() const noexcept = 0;
-			virtual std::string_view arg(std::size_t idx) const noexcept = 0;
-		};
-
-		struct type_info_helper{
-			virtual std::string_view name() const noexcept = 0;
-			virtual std::size_t size() const noexcept = 0;
-			virtual std::size_t alignment() const noexcept = 0;
-			virtual void destroy(void *p) const noexcept = 0;
-			virtual void *construct(void *p, args_pack_base *args) const = 0;
-			virtual std::size_t num_attributes() const noexcept{ return 0; }
-			virtual attribute_info attribute(std::size_t idx) const noexcept{ return nullptr; }
-		};
-
 		template<typename T, typename Helper>
 		struct info_helper_base: Helper{
 			std::string_view name() const noexcept override{ return metapp::type_name<T>; }

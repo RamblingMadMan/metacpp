@@ -132,6 +132,39 @@ refl::enum_info refl::reflect_enum(std::string_view name){
 	return dynamic_cast<enum_info>(ret);
 }
 
+std::vector<std::string_view> refl::attribute(refl::type_info t, std::string_view name, std::vector<std::string_view> placeholder_){
+	const std::size_t num_attribs = t->num_attributes();
+
+	std::string attrib_name;
+
+	for(std::size_t attrib_i = 0; attrib_i < num_attribs; attrib_i++){
+		const auto attrib = t->attribute(attrib_i);
+		const auto scope = attrib->scope();
+
+		if(scope.empty()){
+			attrib_name = attrib->name();
+		}
+		else{
+			attrib_name = fmt::format("{}::{}", scope, attrib->name());
+		}
+
+		if(attrib_name == name){
+			const std::size_t num_args = attrib->num_args();
+
+			std::vector<std::string_view> ret;
+			ret.reserve(num_args);
+
+			for(std::size_t arg_i = 0; arg_i < num_args; arg_i++){
+				ret.emplace_back(attrib->arg(arg_i));
+			}
+
+			return ret;
+		}
+	}
+
+	return placeholder_;
+}
+
 bool refl::has_base(refl::class_info type, refl::class_info base) noexcept{
 	if(!type || !base) return false;
 

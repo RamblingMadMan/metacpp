@@ -14,6 +14,28 @@
 #include "metacpp/refl.hpp"
 
 namespace {
+	struct void_info_helper: refl::detail::type_info_helper{
+		std::string_view name() const noexcept override{ return "void"; }
+		std::size_t size() const noexcept override{ return 0; }
+		std::size_t alignment() const noexcept override{ return 0; }
+		void destroy(void*) const noexcept override{}
+		void *construct(void *p, refl::args_pack_base *args) const override{ return nullptr; }
+		std::type_index type_index() const noexcept override{ return typeid(void); }
+	};
+
+	static refl::detail::int_info_helper_impl<std::int8_t> int8_refl;
+	static refl::detail::int_info_helper_impl<std::int16_t> int16_refl;
+	static refl::detail::int_info_helper_impl<std::int32_t> int32_refl;
+	static refl::detail::int_info_helper_impl<std::int64_t> int64_refl;
+
+	static refl::detail::int_info_helper_impl<std::uint8_t> uint8_refl;
+	static refl::detail::int_info_helper_impl<std::uint16_t> uint16_refl;
+	static refl::detail::int_info_helper_impl<std::uint32_t> uint32_refl;
+	static refl::detail::int_info_helper_impl<std::uint64_t> uint64_refl;
+
+	static refl::detail::float_info_helper_impl<float> float_refl;
+	static refl::detail::float_info_helper_impl<double> double_refl;
+
 	class type_loader{
 		public:
 			type_loader(){}
@@ -52,33 +74,46 @@ namespace {
 				return true;
 			}
 
+			std::vector<refl::type_info> all(){
+				std::vector<refl::type_info> ret;
+				ret.reserve(m_types.size() + 32);
+
+				ret.emplace_back(&int8_refl);
+				ret.emplace_back(&int16_refl);
+				ret.emplace_back(&int32_refl);
+				ret.emplace_back(&int64_refl);
+				ret.emplace_back(&uint8_refl);
+				ret.emplace_back(&uint16_refl);
+				ret.emplace_back(&uint32_refl);
+				ret.emplace_back(&uint64_refl);
+				ret.emplace_back(&float_refl);
+				ret.emplace_back(&double_refl);
+				ret.emplace_back(refl::detail::void_info());
+
+				for(auto &&type_p : m_types){
+					ret.emplace_back(type_p.second);
+				}
+
+				return ret;
+			}
+
+			std::vector<refl::class_info> all_classes(){
+				std::vector<refl::class_info> ret;
+				ret.reserve(m_types.size());
+
+				for(auto &&type_p : m_types){
+					auto cls = dynamic_cast<refl::class_info>(type_p.second);
+					if(cls) ret.emplace_back(cls);
+				}
+
+				return ret;
+			}
+
 		private:
 			std::unordered_map<std::string_view, refl::type_info> m_types;
 	};
 
 	type_loader REFLCPP_EXPORT_SYMBOL loader;
-
-	struct void_info_helper: refl::detail::type_info_helper{
-		std::string_view name() const noexcept override{ return "void"; }
-		std::size_t size() const noexcept override{ return 0; }
-		std::size_t alignment() const noexcept override{ return 0; }
-		void destroy(void*) const noexcept override{}
-		void *construct(void *p, refl::args_pack_base *args) const override{ return nullptr; }
-		std::type_index type_index() const noexcept override{ return typeid(void); }
-	};
-
-	static refl::detail::int_info_helper_impl<std::int8_t> int8_refl;
-	static refl::detail::int_info_helper_impl<std::int16_t> int16_refl;
-	static refl::detail::int_info_helper_impl<std::int32_t> int32_refl;
-	static refl::detail::int_info_helper_impl<std::int64_t> int64_refl;
-
-	static refl::detail::int_info_helper_impl<std::uint8_t> uint8_refl;
-	static refl::detail::int_info_helper_impl<std::uint16_t> uint16_refl;
-	static refl::detail::int_info_helper_impl<std::uint32_t> uint32_refl;
-	static refl::detail::int_info_helper_impl<std::uint64_t> uint64_refl;
-
-	static refl::detail::float_info_helper_impl<float> float_refl;
-	static refl::detail::float_info_helper_impl<double> double_refl;
 }
 
 refl::type_info refl::detail::void_info() noexcept{
@@ -121,6 +156,14 @@ bool refl::detail::register_type(refl::type_info info, bool overwrite){
 
 refl::type_info refl::reflect(std::string_view name){
 	return loader.load(name);
+}
+
+std::vector<refl::type_info> refl::reflect_all(){
+	return loader.all();
+}
+
+std::vector<refl::class_info> refl::reflect_all_classes(){
+	return loader.all_classes();
 }
 
 refl::class_info refl::reflect_class(std::string_view name){

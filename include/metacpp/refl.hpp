@@ -114,6 +114,20 @@ namespace reflpp{
 	type_info reflect(std::string_view name);
 
 	/**
+	 * @brief Get information about every reflected type in a program.
+	 * @warning this can be an expensive operation
+	 * @returns information about all reflected types
+	 */
+	std::vector<type_info> reflect_all();
+
+	/**
+	 * @brief Get information about every reflected class type in a program.
+	 * @warning this can be an expensive operation
+	 * @returns information about all reflected classes
+	 */
+	std::vector<class_info> reflect_all_classes();
+
+	/**
 	 * @brief Try to dynamically get information about a class type.
 	 * @see reflect
 	 */
@@ -171,6 +185,93 @@ namespace reflpp{
 	 * @param base base to check against
 	 */
 	bool has_base(class_info type, class_info base) noexcept;
+
+	template<typename Base>
+	struct derived_info;
+
+	/**
+	 * @brief Helper function to get information about all classes deriving from a common parent.
+	 * @warning this can be an expensive operation
+	 * @return type information for all reflected derived classes
+	 */
+	template<typename Base>
+	std::vector<derived_info<Base>> reflect_all_derived();
+
+	/**
+	 * @brief Helper class for storing information about a specific heirarchy of types
+	 * @tparam Base base class for stored class type
+	 */
+	template<typename Base>
+	struct derived_info{
+		public:
+			template<typename Derived>
+			derived_info(meta::type<Derived>){
+				static_assert(std::is_base_of_v<Base, Derived>);
+				m_info = reflect<Derived>();
+			}
+
+			template<typename Derived>
+			derived_info(const derived_info<Derived> &other) noexcept{
+				static_assert(std::is_base_of_v<Base, Derived>);
+				m_info = other.m_info;
+			}
+
+			derived_info(class_info cls){
+				if(!has_base(cls, base_info())){
+					throw std::runtime_error("class type is not derived from base");
+				}
+
+				m_info = cls;
+			}
+
+			template<typename Derived>
+			derived_info &operator=(const derived_info<Derived> &other) noexcept{
+				static_assert(std::is_base_of_v<Base, Derived>);
+
+				if(this != &other){
+					m_info = other.m_info;
+				}
+
+				return *this;
+			}
+
+			operator class_info() const noexcept{ return m_info; }
+
+			class_info operator->() const noexcept{ return m_info; }
+
+			static class_info base_info(){
+				static const class_info ret = reflect<Base>();
+				return ret;
+			}
+
+		private:
+			struct unsafe_tag{};
+
+			derived_info(unsafe_tag, class_info cls) noexcept
+				: m_info(cls){}
+
+			class_info m_info;
+
+			friend std::vector<derived_info<Base>> reflect_all_derived<Base>();
+	};
+
+	template<typename Base>
+	std::vector<derived_info<Base>> reflect_all_derived(){
+		static auto all_cls = reflect_all_classes();
+		static auto base = reflect<Base>();
+
+		std::vector<derived_info<Base>> ret;
+
+		using info = derived_info<Base>;
+
+		for(auto cls : all_cls){
+			if(has_base(cls, base)){
+				ret.emplace_back(info(typename info::unsafe_tag{}, cls));
+			}
+		}
+
+		return ret;
+	}
 
 	namespace detail{
 		template<typename T>

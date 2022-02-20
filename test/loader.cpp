@@ -36,10 +36,18 @@ int main(int argc, char *argv[]){
 
 	assert(instance.as<TestTemplateClass<int>>());
 
+	assert(!refl::reflect_all_classes().empty());
+
 	refl::class_info derived_test_cls;
 	assert(derived_test_cls = refl::reflect_class("example_test_derived"));
 	assert(derived_test_cls->size() == sizeof(example_test_derived));
 	assert(derived_test_cls->alignment() == alignof(example_test_derived));
+	assert(derived_test_cls->num_bases() == 1);
+	assert(derived_test_cls->base(0) == refl::reflect<TestTemplateClass<std::string_view>>());
+
+	auto derived_from_infos = refl::reflect_all_derived<TestTemplateClass<std::string_view>>();
+	assert(derived_from_infos.size() >= 1);
+	assert(derived_from_infos[0] == derived_test_cls);
 
 	{
 		auto derived_instance = refl::value<TestTemplateClass<std::string_view>>(derived_test_cls, (int)1);

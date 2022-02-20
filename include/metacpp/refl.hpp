@@ -716,6 +716,7 @@ namespace reflpp{
 					std::size_t size() const noexcept override{ return sizeof(void*); }
 					std::size_t alignment() const noexcept override{ return alignof(void*); }
 					void destroy(void *p) const noexcept override{ }
+					std::type_index type_index() const noexcept override{ return typeid(T); }
 					type_info refered() const noexcept override{ static auto ret = reflpp::reflect<std::remove_reference_t<T>>(); return ret; }
 				} static ret;
 				return &ret;
@@ -731,6 +732,7 @@ namespace reflpp{
 					std::size_t size() const noexcept override{ return sizeof(T); }
 					std::size_t alignment() const noexcept override{ return alignof(T); }
 					void destroy(void *p) const noexcept override{ }
+					std::type_index type_index() const noexcept override{ return typeid(T); }
 					type_info pointed() const noexcept override{ static auto ret = reflpp::reflect<std::remove_pointer_t<T>>(); return ret; }
 				} static ret;
 				return &ret;

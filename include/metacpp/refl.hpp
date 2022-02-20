@@ -14,6 +14,7 @@
 #include <cstring>
 #include <climits>
 #include <functional>
+#include <typeindex>
 
 #include "meta.hpp"
 
@@ -41,6 +42,7 @@ namespace reflpp{
 			virtual void *construct(void *p, args_pack_base *args) const = 0;
 			virtual std::size_t num_attributes() const noexcept{ return 0; }
 			virtual const attribute_info_helper *attribute(std::size_t idx) const noexcept{ return nullptr; }
+			virtual std::type_index type_index() const noexcept = 0;
 		};
 
 		struct num_info_helper;
@@ -244,6 +246,7 @@ namespace reflpp{
 			std::size_t size() const noexcept override{ return sizeof(T); }
 			std::size_t alignment() const noexcept override{ return alignof(T); }
 			void destroy(void *p) const noexcept override{ std::destroy_at(reinterpret_cast<T*>(p)); }
+			std::type_index type_index() const noexcept override{ return typeid(T); }
 		};
 
 		struct ref_info_helper: type_info_helper{
@@ -321,9 +324,10 @@ namespace reflpp{
 
 			std::size_t num_params() const noexcept override{
 				std::size_t ret = 0;
-				metapp::for_all<typename method_info::params>([&]<typename Info>{
-					if constexpr(Info::is_variadic){
-						ret += Info::type::size;
+				metapp::for_all<typename method_info::params>([&](auto info_type){
+					using info = metapp::get_t<decltype(info_type)>;
+					if constexpr(info::is_variadic){
+						ret += info::type::size;
 					}
 					else{
 						++ret;
@@ -337,16 +341,17 @@ namespace reflpp{
 				if(idx >= num_params()) return "";
 				std::string_view ret;
 				std::size_t offset = 0;
-				metapp::for_all<typename method_info::params>([&]<typename Info>{
-					if constexpr(Info::is_variadic){
-						metapp::for_all<typename Info::type>([&]<typename>{
+				metapp::for_all<typename method_info::params>([&](auto info_type){
+					using info = metapp::get_t<decltype(info_type)>;
+					if constexpr(info::is_variadic){
+						metapp::for_all<typename info::type>([&](auto){
 							if(offset++ != idx) return;
-							ret = Info::name;
+							ret = info::name;
 						});
 					}
 					else{
 						if(offset++ != idx) return;
-						ret = Info::name;
+						ret = info::name;
 					}
 				});
 				return ret;
@@ -356,17 +361,20 @@ namespace reflpp{
 				if(idx >= num_params()) return nullptr;
 				type_info ret = nullptr;
 				std::size_t offset = 0;
-				metapp::for_all<typename method_info::params>([&]<typename Info>{
-					if constexpr(Info::is_variadic){
-						metapp::for_all<typename Info::type>([&]<typename Inner>{
+				metapp::for_all<typename method_info::params>([&](auto info_type){
+					using info = metapp::get_t<decltype(info_type)>;
+
+					if constexpr(info::is_variadic){
+						metapp::for_all<typename info::type>([&](auto inner_type){
+							using inner = metapp::get_t<decltype(inner_type)>;
 							if(offset++ != idx) return;
-							static const auto reflected = reflect<Inner>();
+							static const auto reflected = reflect<inner>();
 							ret = reflected;
 						});
 					}
 					else{
 						if(offset != idx) return;
-						static const auto reflected = reflect<typename Info::type>();
+						static const auto reflected = reflect<typename info::type>();
 						ret = reflected;
 					}
 				});

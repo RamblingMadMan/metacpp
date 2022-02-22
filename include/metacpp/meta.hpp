@@ -11,6 +11,7 @@
 #define METACPP_META_HPP 1
 
 #include <stdexcept>
+#include <variant>
 #include <string_view>
 #include <functional>
 
@@ -220,10 +221,23 @@ namespace metapp{
 		struct instantiate_helper<T, types<Args...>>{
 			using type = T<Args...>;
 		};
+
+		template<typename T, template<typename...> class U>
+		struct is_instantiation_helper{
+			static constexpr bool value = false;
+		};
+
+		template<typename ... Ts, template<typename...> class U>
+		struct is_instantiation_helper<U<Ts...>, U>{
+			static constexpr bool value = true;
+		};
 	}
 
 	template<template<typename...> class T, typename Args>
 	using instantiate = typename detail::instantiate_helper<T, Args>::type;
+
+	template<typename Inst, template<typename...> class Tmpl>
+	inline constexpr bool is_instantiation = detail::is_instantiation_helper<Inst, Tmpl>::value;
 
 	namespace detail{
 		template<typename Ts, typename Indices>
@@ -268,9 +282,27 @@ namespace metapp{
 		template<typename L, typename T>
 		struct append_helper;
 
+		template<auto ... Vs, auto V>
+		struct append_helper<values<Vs...>, value<V>>{
+			using type = values<Vs..., V>;
+		};
+
 		template<typename ... Ts, typename U>
 		struct append_helper<types<Ts...>, U>{
 			using type = types<Ts..., U>;
+		};
+
+		template<typename L>
+		struct head_helper;
+
+		template<typename T, typename ... Ts>
+		struct head_helper<types<T, Ts...>>{
+			using type = T;
+		};
+
+		template<auto V, auto ... Vs>
+		struct head_helper<values<V, Vs...>>{
+			using type = value<V>;
 		};
 
 		template<typename L>
@@ -279,6 +311,11 @@ namespace metapp{
 		template<typename T, typename ... Ts>
 		struct tail_helper<types<T, Ts...>>{
 			using type = types<Ts...>;
+		};
+
+		template<auto V, auto ... Vs>
+		struct tail_helper<values<V, Vs...>>{
+			using type = values<Vs...>;
 		};
 
 		template<typename L, typename Ret = types<>>
@@ -313,7 +350,7 @@ namespace metapp{
 	using join = typename detail::join_helper<Ls...>::type;
 
 	template<typename L>
-	using head = get_t<L, 0>;
+	using head = typename detail::head_helper<L>::type;
 
 	template<typename L>
 	using tail = typename detail::tail_helper<L>::type;
@@ -326,6 +363,41 @@ namespace metapp{
 
 	template<typename T>
 	using template_args = typename detail::template_args_helper<T>::type;
+
+	namespace detail{
+		template<std::size_t N, std::size_t Max = N, typename Ret = values<>>
+		struct make_indices_helper{
+			using type = typename make_indices_helper<N-1, Max, append<Ret, value<Max - N>>>::type;
+		};
+
+		template<std::size_t Max, std::size_t ... Is>
+		struct make_indices_helper<0, Max, values<Is...>>{
+			using type = values<Is...>;
+		};
+	}
+
+	template<std::size_t N>
+	using make_indices = typename detail::make_indices_helper<N>::type;
+
+	/**
+	 * @brief Helper tag type for ignoring things
+	 */
+	struct ignore{
+		template<typename T>
+		constexpr bool operator==(T&&) const noexcept{ return true; }
+
+		template<typename T>
+		constexpr bool operator!=(T&&) const noexcept{ return false; }
+	};
+
+	template<typename T>
+	struct return_{
+		public:
+			template<typename U>
+			return_(U &&val): value(std::forward<U>(val)){}
+
+			T value;
+	};
 
 	namespace detail{
 		template<typename Ts>
@@ -392,6 +464,57 @@ namespace metapp{
 		template<typename Ts>
 		struct for_all_i_helper;
 
+		template<std::size_t N>
+		struct for_all_i_helper<value<N>>{
+			public:
+				template<typename Fn>
+				static constexpr void invoke(Fn &&f){
+					invoke_impl(std::forward<Fn>(f), make_indices<N>());
+				}
+
+			private:
+				template<typename Fn, std::size_t ... Is>
+				static constexpr decltype(auto) invoke_impl(Fn &&f, values<Is...>){
+					using indices = values<Is...>;
+
+					if constexpr(sizeof...(Is) == 0){
+						return ignore{};
+					}
+					else if constexpr(std::is_invocable_v<std::decay_t<Fn>, std::size_t>){
+						using result = std::invoke_result_t<std::decay_t<Fn>, std::size_t>;
+						if constexpr(is_instantiation<result, return_>){
+							auto ret = std::forward<Fn>(f)(get_v<head<indices>>);
+							return std::forward<decltype(ret.value)>(ret.value);
+						}
+						else{
+							(std::forward<Fn>(f)(Is), ...);
+						}
+					}
+					else if constexpr((std::is_invocable_v<std::decay_t<Fn>, values<Is>> && ...)){
+						using result = std::invoke_result_t<std::decay_t<Fn>, head<indices>>;
+						if constexpr(is_instantiation<result, return_>){
+							auto ret = std::forward<Fn>(f)(head<indices>());
+							return std::forward<decltype(ret.value)>(ret.value);
+						}
+						else{
+							std::forward<Fn>(f)(head<indices>());
+							return (invoke_impl(std::forward<Fn>(f), tail<indices>()));
+						}
+					}
+					else{
+						using result = decltype(std::forward<Fn>(f).template operator()<get_v<head<indices>>>());
+						if constexpr(is_instantiation<result, return_>){
+							auto ret = std::forward<Fn>(f)(head<indices>());
+							return std::forward<decltype(ret.value)>(ret.value);
+						}
+						else{
+							std::forward<Fn>(f)(head<indices>());
+							return (invoke_impl(std::forward<Fn>(f), tail<indices>()));
+						}
+					}
+				}
+		};
+
 		template<typename ... Ts>
 		struct for_all_i_helper<types<Ts...>>{
 			public:
@@ -453,6 +576,11 @@ namespace metapp{
 	template<typename Ts, typename Fn>
 	void for_all_i(Fn &&f){
 		detail::for_all_i_helper<Ts>::invoke(std::forward<Fn>(f));
+	}
+
+	template<std::size_t N, typename Fn>
+	decltype(auto) for_all_i(Fn &&f){
+		return detail::for_all_i_helper<value<N>>::invoke(std::forward<Fn>(f));
 	}
 
 	namespace detail{
@@ -830,17 +958,6 @@ namespace metapp{
 		static constexpr auto get(T &&cls){
 			return std::forward<T>(cls).*ptr;
 		}
-	};
-
-	/**
-	 * @brief Helper tag type for ignoring aspects of a query.
-	 */
-	struct ignore{
-		template<typename T>
-		constexpr bool operator==(T&&) const noexcept{ return true; }
-
-		template<typename T>
-		constexpr bool operator!=(T&&) const noexcept{ return false; }
 	};
 
 #if __cplusplus >= 202002L && !METACPP_TOOL_RUN

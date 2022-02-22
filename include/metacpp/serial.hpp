@@ -66,7 +66,9 @@ namespace serialpp{
 	}
 }
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
 namespace METACPP_SERIAL_NAMESPACE = serialpp;
+#endif
 
 /**
  * @}

@@ -61,7 +61,9 @@ namespace pluginpp{
 	const library *self();
 }
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
 namespace METACPP_PLUGIN_NAMESPACE = pluginpp;
+#endif
 
 /**
  * @}

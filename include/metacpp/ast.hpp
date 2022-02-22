@@ -279,7 +279,9 @@ namespace astpp{
 	std::string compiler_version();
 }
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
 namespace METACPP_AST_NAMESPACE = astpp;
+#endif
 
 /**
  * @}

@@ -1137,7 +1137,9 @@ namespace reflpp{
 	};
 }
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
 namespace METACPP_REFL_NAMESPACE = reflpp;
+#endif
 
 /**
  * @}

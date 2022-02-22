@@ -29,6 +29,8 @@
 #define REFLCPP_IMPORT_SYMBOL __declspec(dllimport)
 #endif
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
+
 #ifndef REFLCPP_IMPLEMENTATION
 #define REFLCPP_API REFLCPP_IMPORT_SYMBOL
 #else
@@ -54,5 +56,7 @@
 #ifndef METACPP_META_NAMESPACE
 #define METACPP_META_NAMESPACE meta
 #endif
+
+#endif // !METACPP_NO_NAMESPACE_ALIAS
 
 #endif // !METACPP_CONFIG_HPP

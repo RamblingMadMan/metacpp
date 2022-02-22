@@ -1311,7 +1311,9 @@ namespace metapp{
 	 */
 }
 
+#ifndef METACPP_NO_NAMESPACE_ALIAS
 namespace METACPP_META_NAMESPACE = metapp;
+#endif
 
 /**
  * @}

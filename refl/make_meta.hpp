@@ -20,25 +20,9 @@ std::string make_function_meta(
 	std::string output;
 	std::string param_types_str, params_member_str;
 
-	std::string full_name = fn.name;
-
 	for(std::size_t i = 0; i < fn.param_types.size(); i++){
 		auto &&param_type = fn.param_types[i];
 		auto &&param_name = fn.param_names[i];
-
-		const bool param_is_variadic = param_type.rfind("...") == (param_type.size() - 3);
-
-		output += fmt::format(
-			"template<> struct metapp::detail::param_info_data<metapp::value<({0})>, {1}>{{\n"
-			"\t"	"using type = {2};\n"
-			"\t"	"static constexpr std::string_view name = \"{0}\";\n"
-			"\t"	"static constexpr bool is_variadic = {3};\n"
-			"}};\n"
-			"\n",
-			full_name, i,
-			param_is_variadic ? fmt::format("meta::types<{}>", param_type) : param_type,
-			param_is_variadic
-		);
 
 		params_member_str += fmt::format(
 			",\n"
@@ -56,16 +40,50 @@ std::string make_function_meta(
 		params_member_str += "\n\t";
 	}
 
+
+	std::string full_name = fn.name;
+
+	std::string fn_val = fmt::format(
+		"static_cast<{}(*)({})>(&{})",
+		fn.result_type, param_types_str, full_name
+	);
+
+	for(std::size_t i = 0; i < fn.param_types.size(); i++){
+		auto &&param_type = fn.param_types[i];
+		auto &&param_name = fn.param_names[i];
+
+		const bool param_is_variadic = param_type.rfind("...") == (param_type.size() - 3);
+
+		output += fmt::format(
+			"template<> struct metapp::detail::param_info_data<metapp::value<({4})>, {1}>{{\n"
+			"\t"	"using type = {2};\n"
+			"\t"	"static constexpr std::string_view name = \"{0}\";\n"
+			"\t"	"static constexpr bool is_variadic = {3};\n"
+			"}};\n"
+			"\n",
+			param_name,
+			i,
+			param_is_variadic ? fmt::format("meta::types<{}>", param_type) : param_type,
+			param_is_variadic,
+			fn_val
+		);
+	}
+
 	return fmt::format(
 		"{0}"
-		"template<> struct metapp::detail::function_info_data<({1})>{{\n"
+		"template<> struct metapp::detail::function_info_data<({5})>{{\n"
 		"\t"	"static constexpr std::string_view name = \"{1}\";\n"
 		"\t"	"using type = {2}(*)({3});\n"
-		"\t"	"static constexpr type ptr = (type){1};\n"
+		"\t"	"static constexpr type ptr = {1};\n"
 		"\t"	"using result = {2};\n"
 		"\t"	"using params = metapp::types<{4}>;\n"
 		"}};\n",
-		output, full_name, fn.result_type, param_types_str, params_member_str
+		output,
+		full_name,
+		fn.result_type,
+		param_types_str,
+		params_member_str,
+		fn_val
 	);
 }
 

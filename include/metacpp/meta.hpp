@@ -1260,6 +1260,39 @@ namespace metapp{
 	using attributes = typename info<Ent>::attributes;
 
 	/**
+	 * @brief Check if a type has an attribute, specified by scope and name
+	 * @tparam Ent type to check
+	 * @param scope scoped attribute scope
+	 * @param name attribute name
+	 * @returns whether the attribute exists for \ref Ent
+	 */
+	template<typename Ent>
+	constexpr bool has_attribute(std::string_view scope, std::string_view name){
+		bool ret = false;
+		for_all<attributes<Ent>>([&](auto info_type){
+			using attrib = get_t<decltype(info_type)>;
+			ret = (ret || (scope == attrib::scope && name == attrib::name));
+		});
+		return ret;
+	}
+
+	/**
+	 * @brief Check if a type has an attribute
+	 * @tparam Ent type to check
+	 * @param name attribute name
+	 * @returns has_attribute<\ref Ent>("", \ref name)
+	 */
+	template<typename Ent>
+	constexpr bool has_attribute(std::string_view name){
+		bool ret = false;
+		for_all<attributes<Ent>>([&](auto info_type){
+			using attrib = get_t<decltype(info_type)>;
+			ret = (ret || (name == attrib::name));
+		});
+		return ret;
+	}
+
+	/**
 	 * @brief Get the args of an entity attribute by index.
 	 */
 	template<typename Ent, std::size_t Idx>

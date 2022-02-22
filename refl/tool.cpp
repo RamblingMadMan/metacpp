@@ -21,10 +21,11 @@ namespace fs = std::filesystem;
 
 std::string make_function_refl(const ast::function_info &fn){
 	std::string full_name = fn.name;
-	std::string param_names_arr, param_types_arr;
+	std::string param_names_arr, param_types_arr, param_types_str;
 
 	constexpr std::string_view operator_prefix = "::operator";
 
+	// TODO: handle operator overloads
 	if(std::string_view(full_name).substr(0, operator_prefix.size()) == operator_prefix){
 		return "";
 	}
@@ -36,10 +37,12 @@ std::string make_function_refl(const ast::function_info &fn){
 
 			param_names_arr += fmt::format(", \"{}\"", param_name);
 			param_types_arr += fmt::format(", reflpp::reflect<{}>()", param_type);
+			param_types_str += fmt::format(", {}", param_type);
 		}
 
 		param_names_arr.erase(0, 2);
 		param_types_arr.erase(0, 2);
+		param_types_str.erase(0, 2);
 
 		param_names_arr = fmt::format(
 			"\t"	"\t"	"const char *const param_name_arr[{}] = {{ {} }};\n"
@@ -60,8 +63,13 @@ std::string make_function_refl(const ast::function_info &fn){
 		param_types_arr = "\t"	"\t"	"reflpp::type_info param_type(std::size_t) const noexcept override{{ return nullptr; }}\n";
 	}
 
+	std::string fn_val = fmt::format(
+		"static_cast<{}(*)({})>(&{})",
+		fn.result_type, param_types_str, full_name
+	);
+
 	return fmt::format(
-		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<({0})>(){{\n"
+		"template<> REFLCPP_EXPORT_SYMBOL reflpp::function_info reflpp::detail::function_export<({5})>(){{\n"
 		"\t"	"struct function_info_impl: detail::function_info_helper{{\n"
 		"\t"	"\t"	"std::string_view name() const noexcept override{{ return \"{0}\"; }}\n"
 		"\t"	"\t"	"const reflpp::type_info result_type_val = reflpp::reflect<{1}>();\n"
@@ -72,8 +80,12 @@ std::string make_function_refl(const ast::function_info &fn){
 		"\t"	"}} static ret;\n"
 		"\t"	"return &ret;\n"
 		"}}\n",
-		full_name, fn.result_type, fn.param_types.size(),
-		param_names_arr, param_types_arr
+		full_name,
+		fn.result_type,
+		fn.param_types.size(),
+		param_names_arr,
+		param_types_arr,
+		fn_val
 	);
 }
 

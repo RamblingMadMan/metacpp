@@ -2,6 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+find_package(Threads REQUIRED)
+
 add_library(metacpp-refl SHARED make_meta.hpp refl.cpp)
 add_library(metacpp::refl ALIAS metacpp-refl)
 add_library(metapp::refl ALIAS metacpp-refl)
@@ -30,7 +32,7 @@ add_executable(metapp::refl-tool ALIAS reflpp)
 
 target_compile_features(reflpp PRIVATE cxx_std_17)
 
-target_link_libraries(reflpp Boost::system fmt::fmt-header-only metacpp::ast)
+target_link_libraries(reflpp Threads::Threads Boost::system fmt::fmt-header-only metacpp::ast)
 
 if(METACPP_IPO_SUPPORTED)
 	set_target_properties(

@@ -10,6 +10,7 @@
 #include <string_view>
 #include <filesystem>
 #include <fstream>
+#include <future>
 
 #include "fmt/format.h"
 
@@ -245,101 +246,112 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	auto compile_info = ast::compile_info(build_dir);
+	auto compile_info = ast::compile_info(build_dir);	
 
 	const auto include_dirs = compile_info.all_include_dirs();
 
+	std::vector<std::future<void>> m_futs;
+	m_futs.reserve(headers.size());
+
 	for(const auto &header : headers){
-		const auto abs_header = fs::absolute(header).string();
+		m_futs.emplace_back(
+			std::async(std::launch::async, [&header, verbose, output_dir, &include_dirs, &compile_info]{
+				const auto abs_header = fs::absolute(header).string();
 
-		auto info = ast::parse(header, compile_info, verbose);
+				auto info = ast::parse(header, compile_info, verbose);
 
-		auto file_output_dir = output_dir;
+				auto file_output_dir = output_dir;
 
-		for(auto &&dir : include_dirs){
-			const auto abs_dir = fs::absolute(dir).string();
-			const auto initial_header = std::string_view(abs_header).substr(0, abs_dir.size());
+				for(auto &&dir : include_dirs){
+					const auto abs_dir = fs::absolute(dir).string();
+					const auto initial_header = std::string_view(abs_header).substr(0, abs_dir.size());
 
-			if(initial_header == abs_dir){
-				const auto abs_header_dir = fs::path(abs_header).parent_path().string();
+					if(initial_header == abs_dir){
+						const auto abs_header_dir = fs::path(abs_header).parent_path().string();
 
-				const auto rel_header = std::string_view(abs_header_dir).substr(abs_dir.size() + 1);
+						const auto rel_header = std::string_view(abs_header_dir).substr(abs_dir.size() + 1);
 
-				file_output_dir = output_dir / rel_header;
+						file_output_dir = output_dir / rel_header;
 
-				break;
-			}
-		}
+						break;
+					}
+				}
 
-		const auto header_file = header.filename();
+				const auto header_file = header.filename();
 
-		auto out_header_path = file_output_dir / header_file;
+				auto out_header_path = file_output_dir / header_file;
 
-		out_header_path.replace_extension(fmt::format(".meta{}", header_file.extension().string()));
+				out_header_path.replace_extension(fmt::format(".meta{}", header_file.extension().string()));
 
-		auto out_header_path_utf8 = out_header_path.u8string();
+				auto out_header_path_utf8 = out_header_path.u8string();
 
-		auto out_source_path = file_output_dir / header_file;
-		out_source_path += ".refl.cpp";
-		auto out_source_path_utf8 = out_source_path.u8string();
+				auto out_source_path = file_output_dir / header_file;
+				out_source_path += ".refl.cpp";
+				auto out_source_path_utf8 = out_source_path.u8string();
 
-		std::string ctor_calls;
-		auto namespace_refl = make_namespace_refl(info.global, ctor_calls);
+				std::string ctor_calls;
+				auto namespace_refl = make_namespace_refl(info.global, ctor_calls);
 
-		std::string out_source = fmt::format(
-			"#define REFLCPP_IMPLEMENTATION\n"
-			"#include \"{}\"\n"
-			"#include \"metacpp/refl.hpp\"\n"
-			"\n"
-			"{}"
-			"\n"
-			"__attribute__((constructor))\n"
-			"static void reflpp_load_type_info(){{\n"
+				std::string out_source = fmt::format(
+					"#define REFLCPP_IMPLEMENTATION\n"
+					"#include \"{}\"\n"
+					"#include \"metacpp/refl.hpp\"\n"
+					"\n"
 					"{}"
-			"}}",
-			fs::absolute(out_header_path).string(),
-			namespace_refl,
-			ctor_calls
+					"\n"
+					"__attribute__((constructor))\n"
+					"static void reflpp_load_type_info(){{\n"
+							"{}"
+					"}}",
+					fs::absolute(out_header_path).string(),
+					namespace_refl,
+					ctor_calls
+				);
+
+				std::string out_header = fmt::format(
+					"#pragma once\n"
+					"\n"
+					"#include \"{}\"\n"
+					"#include \"metacpp/meta.hpp\"\n"
+					"\n"
+					"{}",
+					fs::absolute(header).string(),
+					make_namespace_meta(info.global)
+				);
+
+				auto out_header_dir = out_source_path.parent_path();
+				auto out_header_dir_utf8 = out_header_dir.u8string();
+
+				if(!fs::exists(out_header_dir) && !fs::create_directories(out_header_dir)){
+					fmt::print(stderr, "could not create directory '{}'\n", out_header_dir_utf8);
+					std::exit(EXIT_FAILURE);
+				}
+
+				{
+					std::ofstream out_source_file(out_source_path);
+					if(!out_source_file ){
+						fmt::print(stderr, "could not create output file '{}'\n", out_source_path_utf8);
+						std::exit(EXIT_FAILURE);
+					}
+
+					out_source_file << out_source;
+				}
+
+				{
+					std::ofstream out_header_file(out_header_path);
+					if(!out_header_file ){
+						fmt::print(stderr, "could not create output file '{}'\n", out_header_path_utf8);
+						std::exit(EXIT_FAILURE);
+					}
+
+					out_header_file << out_header;
+				}
+			})
 		);
+	}
 
-		std::string out_header = fmt::format(
-			"#pragma once\n"
-			"\n"
-			"#include \"{}\"\n"
-			"#include \"metacpp/meta.hpp\"\n"
-			"\n"
-			"{}",
-			fs::absolute(header).string(),
-			make_namespace_meta(info.global)
-		);
-
-		auto out_header_dir = out_source_path.parent_path();
-		auto out_header_dir_utf8 = out_header_dir.u8string();
-
-		if(!fs::exists(out_header_dir) && !fs::create_directories(out_header_dir)){
-			fmt::print(stderr, "could not create directory '{}'\n", out_header_dir_utf8);
-			return EXIT_FAILURE;
-		}
-
-		{
-			std::ofstream out_source_file(out_source_path);
-			if(!out_source_file ){
-				fmt::print(stderr, "could not create output file '{}'\n", out_source_path_utf8);
-				return EXIT_FAILURE;
-			}
-
-			out_source_file << out_source;
-		}
-
-		{
-			std::ofstream out_header_file(out_header_path);
-			if(!out_header_file ){
-				fmt::print(stderr, "could not create output file '{}'\n", out_header_path_utf8);
-				return EXIT_FAILURE;
-			}
-
-			out_header_file << out_header;
-		}
+	for(auto &&fut : m_futs){
+		fut.get();
 	}
 
 	return EXIT_SUCCESS;

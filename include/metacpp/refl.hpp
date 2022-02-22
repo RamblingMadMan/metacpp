@@ -408,6 +408,7 @@ namespace reflpp{
 		struct class_member_helper{};
 
 		struct class_method_helper{
+			virtual std::string_view name() const noexcept = 0;
 			virtual type_info result_type() const noexcept = 0;
 			virtual std::size_t num_params() const noexcept = 0;
 			virtual std::string_view param_name(std::size_t idx) const noexcept = 0;
@@ -417,6 +418,10 @@ namespace reflpp{
 		template<typename Cls, std::size_t Idx>
 		struct class_method_impl: class_method_helper{
 			using method_info = metapp::class_method<Cls, Idx>;
+
+			std::string_view name() const noexcept override{
+				return method_info::name;
+			}
 
 			type_info result_type() const noexcept override{
 				static const auto ret = reflect<typename method_info::result>();
@@ -918,7 +923,7 @@ namespace reflpp{
 	 * @brief Class for dynamically creating values of statically-unknown types.
 	 * @tparam Base base class of all created values or `void` for any value.
 	 */
-	template<typename Base = void>
+	template<typename Base = void, template<typename> class AllocT = std::allocator>
 	class alignas(16) value{
 		public:
 			using info_type = std::conditional_t<std::is_same_v<Base, void>, type_info, class_info>;
@@ -931,10 +936,23 @@ namespace reflpp{
 			{
 				if constexpr(sizeof(T) <= 16 && alignof(T) <= 16){
 					new(m_storage.bytes) T(std::forward<Args>(args)...);
+					m_destroy_fn = [](void *mem, info_type){
+						auto ptr = reinterpret_cast<T*>(mem);
+						std::destroy_at(ptr);
+					};
 				}
 				else{
-					m_storage.pointer = detail::aligned_alloc(alignof(T), sizeof(T));
-					new(m_storage.pointer) T(std::forward<Args>(args)...);
+					using aligned_storage = std::aligned_storage_t<sizeof(T), alignof(T)>;
+					AllocT<aligned_storage> alloc;
+
+					m_storage.pointer = alloc.allocate(1);
+					m_destroy_fn = [](void *mem, info_type){
+						AllocT<aligned_storage> alloc;
+
+						auto ptr = reinterpret_cast<T*>(mem);
+						std::destroy_at(ptr);
+						alloc.deallocate(reinterpret_cast<aligned_storage*>(mem), 1);
+					};
 				}
 			}
 
@@ -949,6 +967,7 @@ namespace reflpp{
 
 			value(value &&other) noexcept
 				: m_type(std::exchange(other.m_type, nullptr))
+				, m_destroy_fn(std::exchange(other.m_destroy_fn, [](auto...){}))
 			{
 				if(!m_type){
 					return;
@@ -973,6 +992,7 @@ namespace reflpp{
 					destroy();
 
 					m_type = std::exchange(other.m_type, nullptr);
+					m_destroy_fn = std::exchange(other.m_destroy_fn, [](auto...){});
 
 					if(m_type){
 						if(m_type->size() <= 16 && m_type->alignment() <= 16){
@@ -1048,15 +1068,10 @@ namespace reflpp{
 			void destroy(){
 				if(!m_type) return;
 
-				if(m_type->size() <= 16 && m_type->alignment() <= 16){
-					m_type->destroy(m_storage.bytes);
-				}
-				else{
-					m_type->destroy(m_storage.pointer);
-					detail::aligned_free(m_storage.pointer);
-				}
+				m_destroy_fn(ptr(), m_type);
 
 				m_type = nullptr;
+				m_destroy_fn = [](auto...){};
 			}
 
 			template<typename ... Args>
@@ -1070,12 +1085,21 @@ namespace reflpp{
 					if(!type_->construct(m_storage.bytes, &pack)){
 						throw std::runtime_error("Could not construct small value");
 					}
+
+					m_destroy_fn = [](void *mem, info_type info){
+						info->destroy(mem);
+					};
 				}
 				else{
 					m_storage.pointer = detail::aligned_alloc(type_->alignment(), type_->size());
 					if(!type_->construct(m_storage.pointer, &pack)){
 						throw std::runtime_error("Could not construct value");
 					}
+
+					m_destroy_fn = [](void *mem, info_type info){
+						info->destroy(mem);
+						detail::aligned_free(mem);
+					};
 				}
 
 				m_type = type_;
@@ -1104,6 +1128,7 @@ namespace reflpp{
 			}
 
 			info_type m_type = nullptr;
+			void(*m_destroy_fn)(void*, info_type);
 
 			union storage_t{
 				void *pointer;

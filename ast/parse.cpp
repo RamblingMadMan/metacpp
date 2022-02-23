@@ -358,6 +358,11 @@ namespace astpp::detail{
 	}
 
 	std::string resolve_typename(clang::type t){
+		clang::type canon = clang_getCanonicalType(t);
+		if(canon.is_valid()){
+			t = canon;
+		}
+
 		std::string ret = t.spelling();
 
 		clang::cursor decl = clang_getTypeDeclaration(t);
@@ -365,8 +370,8 @@ namespace astpp::detail{
 			return ret;
 		}
 
-		if(decl.kind() == CXCursor_ClassTemplate){
-			ret = decl.spelling();
+		if(decl.kind() == CXCursor_ClassTemplate || decl.kind() == CXCursor_ClassTemplatePartialSpecialization){
+			ret = fmt::format("{}::{}", resolve_namespaces(decl), decl.spelling());
 
 			auto num_tmpl_args = clang_Type_getNumTemplateArguments(t);
 
@@ -375,7 +380,7 @@ namespace astpp::detail{
 
 				for(int i = 0; i < num_tmpl_args; i++){
 					clang::type arg_type = clang_Type_getTemplateArgumentAsType(t, i);
-					ret += fmt::format("{}, ", arg_type.spelling());
+					ret += fmt::format("{}, ", resolve_typename(arg_type));
 				}
 
 				ret.erase(ret.size() - 2);

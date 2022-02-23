@@ -256,7 +256,7 @@ namespace astpp::clang{
 
 			operator CXType() const noexcept{ return m_handle; }			
 
-			bool is_valid() const noexcept{ return m_handle.kind == CXType_Invalid; }
+			bool is_valid() const noexcept{ return m_handle.kind != CXType_Invalid; }
 
 			CXTypeKind kind() const noexcept{ return m_handle.kind; }			
 

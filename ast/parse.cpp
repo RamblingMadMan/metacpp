@@ -357,6 +357,35 @@ namespace astpp::detail{
 		return ret;
 	}
 
+	std::string resolve_typename(clang::type t){
+		std::string ret = t.spelling();
+
+		clang::cursor decl = clang_getTypeDeclaration(t);
+		if(!decl.is_valid()){
+			return ret;
+		}
+
+		if(decl.kind() == CXCursor_ClassTemplate){
+			ret = decl.spelling();
+
+			auto num_tmpl_args = clang_Type_getNumTemplateArguments(t);
+
+			if(num_tmpl_args > 0){
+				ret += "<";
+
+				for(int i = 0; i < num_tmpl_args; i++){
+					clang::type arg_type = clang_Type_getTemplateArgumentAsType(t, i);
+					ret += fmt::format("{}, ", arg_type.spelling());
+				}
+
+				ret.erase(ret.size() - 2);
+				ret += ">";
+			}
+		}
+
+		return ret;
+	}
+
 	std::optional<class_member_info> parse_class_member(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
 		if(c.kind() != CXCursor_FieldDecl){
 			return std::nullopt;
@@ -370,34 +399,7 @@ namespace astpp::detail{
 		class_member_info ret;
 
 		auto member_type = c.type();
-		auto member_type_str = member_type.spelling();
-
-		clang::cursor type_decl = clang_getTypeDeclaration(member_type);
-		if(!clang_isInvalid(type_decl.kind())){
-			//auto namespaces = resolve_namespaces(type_decl);
-
-			//member_type_str = fmt::format("{}::{}", namespaces, type_decl.spelling());
-
-			if(type_decl.kind() == CXCursor_ClassTemplate){
-				auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
-
-				if(num_tmpl_args > 0){
-					member_type_str += "<";
-
-					for(int i = 0; i < num_tmpl_args; i++){
-						clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
-						member_type_str += fmt::format("{}, ", arg_type.spelling());
-					}
-
-					member_type_str.erase(member_type_str.size() - 2);
-					member_type_str += ">";
-				}
-			}
-		}
-
-		if(member_type.kind() == CXType_Typedef){
-			member_type_str = fmt::format("typename {}", member_type_str);
-		}
+		auto member_type_str = resolve_typename(member_type);
 
 		ret.type = std::move(member_type_str);
 		ret.ns = cls->ns;

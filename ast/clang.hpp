@@ -254,9 +254,11 @@ namespace astpp::clang{
 
 			type &operator=(const type&) noexcept = default;
 
-			operator CXType() const noexcept{ return m_handle; }
+			operator CXType() const noexcept{ return m_handle; }			
 
-			CXTypeKind kind() const noexcept{ return m_handle.kind; }
+			bool is_valid() const noexcept{ return m_handle.kind == CXType_Invalid; }
+
+			CXTypeKind kind() const noexcept{ return m_handle.kind; }			
 
 			std::string kind_spelling() const noexcept{
 				return detail::convert_str(clang_getTypeKindSpelling(kind()));

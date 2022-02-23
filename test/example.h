@@ -9,8 +9,14 @@
 
 #pragma once
 
+#include <vector>
 #include <string_view>
 #include <tuple>
+
+namespace ns{
+	template<typename T>
+	using Vector = std::vector<T>;
+}
 
 class [[my::attrib(1, "2", 3.0)]] example{
 	public:
@@ -18,6 +24,10 @@ class [[my::attrib(1, "2", 3.0)]] example{
 		void method1(const std::string &str) noexcept;
 
 		std::tuple<int, float, char> method2();
+
+		std::string_view member1;
+
+		ns::Vector<std::string> member2;
 
 		static float testVal() noexcept{ return 42.f; }
 };

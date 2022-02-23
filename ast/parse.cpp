@@ -372,29 +372,34 @@ namespace astpp::detail{
 		auto member_type = c.type();
 		auto member_type_str = member_type.spelling();
 
+		/*
 		clang::cursor type_decl = clang_getTypeDeclaration(member_type);
 		if(!clang_isInvalid(type_decl.kind())){
 			auto namespaces = resolve_namespaces(type_decl);
-			member_type_str = fmt::format("{}::{}", namespaces, type_decl.spelling());
 
-			auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
+			member_type_str = fmt::format("{}::{}", namespaces, member_type_str);
 
-			if(num_tmpl_args > 0){
-				member_type_str += "<";
+			if(clang_Type_isTransparentTagTypedef(member_type)){
+				auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
 
-				for(int i = 0; i < num_tmpl_args; i++){
-					clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
-					member_type_str += fmt::format("{}, ", arg_type.spelling());
+				if(num_tmpl_args > 0){
+					member_type_str += "<";
+
+					for(int i = 0; i < num_tmpl_args; i++){
+						clang::type arg_type = clang_Type_getTemplateArgumentAsType(member_type, i);
+						member_type_str += fmt::format("{}, ", arg_type.spelling());
+					}
+
+					member_type_str.erase(member_type_str.size() - 2);
+					member_type_str += ">";
 				}
-
-				member_type_str.erase(member_type_str.size() - 2);
-				member_type_str += ">";
 			}
 		}
+		*/
 
+		ret.type = std::move(member_type_str);
 		ret.ns = cls->ns;
 		ret.name = c.spelling();
-		ret.type = member_type_str;
 
 		auto availability = clang_getCursorAvailability(c);
 		ret.is_accessable = availability == CXAvailability_Available || availability == CXAvailability_Deprecated;

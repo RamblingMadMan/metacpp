@@ -1,6 +1,7 @@
 # in-tree builds
 build
 build-*
+docs
 
 # Desktop Environment related junk
 *.kate-swp

@@ -174,6 +174,7 @@ std::string make_member_meta(
 
 	return fmt::format(
 		"template<{4}> struct metapp::detail::class_member_info_data<{0}, {1}>{{\n"
+		"\t"	"using class_ = {0};\n"
 		"\t"	"using type = {3};\n"
 		"\t"	"using ptr_type = type ({0}::*);\n"
 		"\t"	"static constexpr std::string_view name = \"{2}\";\n"

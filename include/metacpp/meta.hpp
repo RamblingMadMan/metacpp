@@ -949,6 +949,7 @@ namespace metapp{
 	 */
 	template<typename Class, typename Idx>
 	struct class_member_info{
+		using class_ = Class;
 		using type = typename detail::class_member_info_data<Class, get_v<Idx>>::type;
 
 		static constexpr std::string_view name = detail::class_member_info_data<Class, get_v<Idx>>::name;

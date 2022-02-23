@@ -11,6 +11,7 @@ project(metacpp VERSION 0.1.0 LANGUAGES C CXX)
 ###################
 
 option(METACPP_BUILD_TESTS "Whether to build test targets" ${PROJECT_IS_TOP_LEVEL})
+option(METACPP_BUILD_DOCS "Whether to build source documentation" ${PROJECT_IS_TOP_LEVEL})
 set(METACPP_SMALL_SIZE 16 CACHE STRING "Size considered 'small'")
 
 #########################
@@ -126,6 +127,18 @@ add_subdirectory(refl)
 
 if(METACPP_BUILD_TESTS)
 	add_subdirectory(test)
+endif()
+
+#########################
+# Project Documentation #
+#########################
+
+if(METACPP_BUILD_DOCS)
+	find_package(Doxygen)
+
+	if(DOXYGEN_FOUND)
+
+	endif()
 endif()
 
 ########################

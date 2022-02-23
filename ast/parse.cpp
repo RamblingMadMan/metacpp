@@ -372,14 +372,13 @@ namespace astpp::detail{
 		auto member_type = c.type();
 		auto member_type_str = member_type.spelling();
 
-		/*
 		clang::cursor type_decl = clang_getTypeDeclaration(member_type);
 		if(!clang_isInvalid(type_decl.kind())){
-			auto namespaces = resolve_namespaces(type_decl);
+			//auto namespaces = resolve_namespaces(type_decl);
 
-			member_type_str = fmt::format("{}::{}", namespaces, member_type_str);
+			//member_type_str = fmt::format("{}::{}", namespaces, type_decl.spelling());
 
-			if(clang_Type_isTransparentTagTypedef(member_type)){
+			if(type_decl.kind() == CXCursor_ClassTemplate){
 				auto num_tmpl_args = clang_Type_getNumTemplateArguments(member_type);
 
 				if(num_tmpl_args > 0){
@@ -395,7 +394,10 @@ namespace astpp::detail{
 				}
 			}
 		}
-		*/
+
+		if(member_type.kind() == CXType_Typedef){
+			member_type_str = fmt::format("typename {}", member_type_str);
+		}
 
 		ret.type = std::move(member_type_str);
 		ret.ns = cls->ns;

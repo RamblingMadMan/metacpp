@@ -840,6 +840,7 @@ namespace metapp{
 	 */
 	template<typename Ent, typename AttribIdx, typename Idx>
 	struct attrib_arg_info{
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view value = detail::attrib_arg_info_data<Ent, get_v<AttribIdx>, get_v<Idx>>::value;
 	};
 
@@ -850,6 +851,7 @@ namespace metapp{
 	struct attrib_info{
 		using args = typename detail::attrib_info_data<Ent, get_v<Idx>>::args;
 
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view scope = detail::attrib_info_data<Ent, get_v<Idx>>::scope;
 		static constexpr std::string_view name = detail::attrib_info_data<Ent, get_v<Idx>>::name;
 	};
@@ -861,6 +863,7 @@ namespace metapp{
 	struct param_info{
 		using type = typename detail::param_info_data<Ent, get_v<Idx>>::type;
 
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view name = detail::param_info_data<Ent, get_v<Idx>>::name;
 		static constexpr bool is_variadic = detail::param_info_data<Ent, get_v<Idx>>::is_variadic;
 	};
@@ -884,6 +887,7 @@ namespace metapp{
 	struct class_base_info{
 		using type = typename detail::class_base_info_data<Class, get_v<Idx>>::type;
 
+		static constexpr std::size_t index = Idx{};
 		static constexpr bool is_variadic = detail::class_base_info_data<Class, get_v<Idx>>::is_variadic;
 		static constexpr access_kind access = detail::class_base_info_data<Class, get_v<Idx>>::access;
 	};
@@ -894,6 +898,8 @@ namespace metapp{
 	template<typename Class, typename Idx>
 	struct class_ctor_info{
 		using params = typename detail::class_ctor_info_data<Class, get_v<Idx>>::params;
+
+		static constexpr std::size_t index = Idx{};
 
 		static constexpr bool is_move_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_move_ctor;
 		static constexpr bool is_copy_ctor = detail::class_ctor_info_data<Class, get_v<Idx>>::is_copy_ctor;
@@ -919,6 +925,7 @@ namespace metapp{
 	 */
 	template<typename Class, typename MethodIdx, typename Idx>
 	struct class_method_param_info{
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view name = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::name;
 		static constexpr bool is_variadic = detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::is_variadic;
 		using type = typename detail::class_method_param_info_data<Class, get_v<MethodIdx>, get_v<Idx>>::type;
@@ -934,6 +941,7 @@ namespace metapp{
 		using param_types = typename detail::class_method_info_data<Class, get_v<Idx>>::param_types;
 		using params = typename detail::class_method_info_data<Class, get_v<Idx>>::params;
 
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view name = detail::class_method_info_data<Class, get_v<Idx>>::name;
 		static constexpr bool is_virtual = detail::class_method_info_data<Class, get_v<Idx>>::is_virtual;
 		static constexpr auto ptr = detail::class_method_info_data<Class, get_v<Idx>>::ptr;
@@ -954,6 +962,7 @@ namespace metapp{
 		using ptr_type = type (class_::*);
 		using attributes = typename detail::class_member_info_data<Class, get_v<Idx>>::attributes;
 
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view name = detail::class_member_info_data<Class, get_v<Idx>>::name;
 		static constexpr auto ptr = detail::class_member_info_data<Class, get_v<Idx>>::ptr;
 
@@ -1159,6 +1168,7 @@ namespace metapp{
 	 */
 	template<typename Enum, typename Idx>
 	struct enum_value_info{
+		static constexpr std::size_t index = Idx{};
 		static constexpr std::string_view name = detail::enum_value_info_data<Enum, get_v<Idx>>::name;
 		static constexpr std::uint64_t value = detail::enum_value_info_data<Enum, get_v<Idx>>::value;
 	};

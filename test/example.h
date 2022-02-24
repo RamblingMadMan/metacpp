@@ -27,6 +27,7 @@ class [[my::attrib(1, "2", 3.0)]] example{
 
 		std::string_view member1;
 
+		[[property]]
 		ns::Vector<std::string> member2;
 
 		static float testVal() noexcept{ return 42.f; }

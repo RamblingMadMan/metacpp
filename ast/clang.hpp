@@ -99,6 +99,9 @@ namespace astpp::clang{
 
 	class token{
 		public:
+			token(CXTranslationUnit tu, CXToken tok) noexcept
+				: m_tu(tu), m_tok(tok){}
+
 			token() = default;
 
 			token(const token&) = default;
@@ -114,9 +117,6 @@ namespace astpp::clang{
 			}
 
 		private:
-			token(CXTranslationUnit tu, CXToken tok) noexcept
-			: m_tu(tu), m_tok(tok){}
-
 			CXTranslationUnit m_tu = nullptr;
 			CXToken m_tok;
 
@@ -232,6 +232,27 @@ namespace astpp::clang{
 			tokens(CXCursor c){
 				m_tu = clang_Cursor_getTranslationUnit(c);
 				auto extent = clang_getCursorExtent(c);
+
+				if(c.kind == CXCursor_FieldDecl){
+					CXSourceLocation loc = clang_getCursorLocation(c);
+					while(--loc.int_data > 0){
+						auto tokp = clang_getToken(m_tu, loc);
+						if(!tokp){
+							continue;
+						}
+
+						auto tok = clang::token(m_tu, *tokp);
+						if(!tok.is_valid()){
+							break;
+						}
+
+						if(tok.str() == ";" || tok.str() == "{"){
+							++loc.int_data;
+							extent = clang_getRange(loc, clang_getRangeEnd(extent));
+							break;
+						}
+					}
+				}
 
 				clang_tokenize(m_tu, extent, &m_toks, &m_num_toks);
 			}

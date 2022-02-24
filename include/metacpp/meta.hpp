@@ -951,6 +951,9 @@ namespace metapp{
 	struct class_member_info{
 		using class_ = Class;
 		using type = typename detail::class_member_info_data<Class, get_v<Idx>>::type;
+		using ptr_type = type (class_::*);
+		using attributes = typename detail::class_member_info_data<Class, get_v<Idx>>::attributes;
+
 
 		static constexpr std::string_view name = detail::class_member_info_data<Class, get_v<Idx>>::name;
 		static constexpr auto ptr = detail::class_member_info_data<Class, get_v<Idx>>::ptr;
@@ -1087,7 +1090,13 @@ namespace metapp{
 	using class_dtor = typename class_info<Class>::dtor;
 
 	/**
-	 * @brief Get a classes method by index.
+	 * @brief Get a class member by index.
+	 */
+	template<typename Class, std::size_t Idx>
+	using class_member = get_t<typename class_info<Class>::members, Idx>;
+
+	/**
+	 * @brief Get a class method by index.
 	 */
 	template<typename Class, std::size_t Idx>
 	using class_method = get_t<typename class_info<Class>::methods, Idx>;

@@ -17,16 +17,19 @@ int main(int argc, char *argv[]){
 	// --------------
 
 	// iterate over all public class methods
-	meta::for_all<meta::methods<example>>([]<class Method>{
+	meta::for_all<meta::methods<example>>([](auto info_type){
+
+		// retrieve the method info (not needed with c++20)
+		using method = meta::get_t<decltype(info_type)>;
 
 		// get method names
-		std::cout << "Method " << Method::name << "\n";
+		std::cout << "Method " << method::name << "\n";
 
 		// as well as information about the method
-		std::cout << "\t"  "pointer type: " << meta::type_name<typename Method::ptr_type> << "\n";
+		std::cout << "\t"  "pointer type: " << meta::type_name<typename method::ptr_type> << "\n";
 
 		// iterate over every parameter of a method
-		meta::for_all_i<typename Method::params>([](auto param, std::size_t idx){
+		meta::for_all_i<typename method::params>([](auto param, std::size_t idx){
 
 			// 'param' is a meta::type<T>
 			using info = meta::get_t<decltype(param)>;
@@ -40,7 +43,35 @@ int main(int argc, char *argv[]){
 		});
 
 		// and don't forget the result type
-		std::cout << "\t"  "result type: " << meta::type_name<typename Method::result> << "\n";
+		std::cout << "\t"  "result type: " << meta::type_name<typename method::result> << "\n";
+	});
+
+	// iterate over all public class members
+	meta::for_all<meta::members<example>>([](auto info_type){
+		using member = meta::get_t<decltype(info_type)>;
+
+		std::cout << "Member " << member::name << "\n";
+
+		std::cout << "\t"	"pointer type: " << meta::type_name<typename member::ptr_type> << "\n";
+
+		meta::for_all<typename member::attributes>([](auto attrib_info_type){
+			using attrib = meta::get_t<decltype(attrib_info_type)>;
+
+			if constexpr(attrib::scope.empty()){
+				std::cout << "\t"	"attribute name: " << attrib::name << "\n";
+			}
+			else{
+				std::cout << "\t"	"attribute name: " << attrib::scope << "::" << attrib::name << "\n";
+			}
+
+			if constexpr(attrib::args::size != 0){
+				meta::for_all<typename attrib::args>([](auto arg_info_type){
+					using arg = meta::get_t<decltype(arg_info_type)>;
+					std::cout << "\t" "attribute arg: " << arg::value << "\n";
+				});
+			}
+		});
+
 	});
 
 	// alias the info for the example class
@@ -86,7 +117,7 @@ int main(int argc, char *argv[]){
 			std::cout << "(";
 
 			// iterate over all attribute arguments
-			for_all_i<typename info::args>([]<class Arg, std::size_t Idx>{
+			for_all_i<typename info::args>([]<class Arg, std::size_t Idx>{ // template lambdas are a c++20 feature
 				if constexpr(Idx != 0){
 					std::cout << ", ";
 				}

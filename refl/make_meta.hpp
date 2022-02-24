@@ -163,7 +163,71 @@ std::string make_member_meta(
 	const ast::class_member_info &m,
 	std::size_t idx
 ){
-	std::string ptr_str;
+	std::string output, ptr_str, attribs_member_str;
+
+	if(!m.attributes.empty()){
+		std::size_t attrib_idx = 0;
+
+		std::string full_ptr = fmt::format("metapp::value<&{}::{}>", full_name, m.name);
+
+		for(auto &&attrib : m.attributes){
+			attribs_member_str += fmt::format(
+				",\n"
+				"\t\t"	"metapp::attrib_info<{0}, metapp::value<{1}>>",
+				full_ptr,
+				attrib_idx
+			);
+
+			std::string args_member_str;
+
+			std::size_t attrib_arg_idx = 0;
+
+			for(auto &&arg : attrib.args()){
+				args_member_str += fmt::format(
+					",\n"
+					"\t\t"	"metapp::attrib_arg_info<{0}, metapp::value<{1}>, metapp::value<{2}>>",
+					full_ptr,
+					attrib_idx,
+					attrib_arg_idx
+				);
+
+				output += fmt::format(
+					"template<{4}> struct metapp::detail::attrib_arg_info_data<{0}, {1}, {2}>{{\n"
+					"\t"	"static constexpr std::string_view value = R\"({3})\";\n"
+					"}};\n"
+					"\n",
+					full_ptr,
+					attrib_idx,
+					attrib_arg_idx++,
+					arg,
+					tmpl_params
+				);
+			}
+
+			if(!args_member_str.empty()){
+				args_member_str.erase(0, 1);
+				args_member_str += "\n\t";
+			}
+
+			output += fmt::format(
+				"template<{5}> struct metapp::detail::attrib_info_data<{0}, {1}>{{\n"
+				"\t"	"static constexpr std::string_view scope = \"{2}\";\n"
+				"\t"	"static constexpr std::string_view name = \"{3}\";\n"
+				"\t"	"using args = metapp::types<{4}>;\n"
+				"}};\n"
+				"\n",
+				full_ptr,
+				attrib_idx++,
+				attrib.scope(),
+				attrib.name(),
+				args_member_str,
+				tmpl_params
+			);
+		}
+
+		attribs_member_str.erase(0, 1);
+		attribs_member_str += "\n\t";
+	}
 
 	if(m.is_accessable){
 		ptr_str = fmt::format("\t"	"static constexpr ptr_type ptr = &{}::{};\n", full_name, m.name);
@@ -173,14 +237,16 @@ std::string make_member_meta(
 	}
 
 	return fmt::format(
+		"{6}"
 		"template<{4}> struct metapp::detail::class_member_info_data<{0}, {1}>{{\n"
 		"\t"	"using class_ = {0};\n"
 		"\t"	"using type = {3};\n"
 		"\t"	"using ptr_type = type ({0}::*);\n"
+		"\t"	"using attributes = metapp::types<{7}>;\n"
 		"\t"	"static constexpr std::string_view name = \"{2}\";\n"
 				"{5}"
 		"}};\n",
-		full_name, idx, m.name, m.type, tmpl_params, ptr_str
+		full_name, idx, m.name, m.type, tmpl_params, ptr_str, output, attribs_member_str
 	);
 }
 

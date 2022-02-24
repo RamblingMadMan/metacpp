@@ -225,13 +225,17 @@ namespace astpp::detail{
 	}
 
 	std::vector<attribute> parse_class_attribs(const fs::path &path, info_map &infos, clang::cursor decl){
-		auto toks = decl.tokens();
+		const auto toks = decl.tokens();
 
 		auto toks_begin = toks.begin();
-
 		++toks_begin; // skip class/struct
 
 		return parse_attribs(path, infos, toks_begin, toks.end());
+	}
+
+	std::vector<attribute> parse_member_attribs(const fs::path &path, info_map &infos, clang::cursor mem){
+		const auto toks = mem.tokens();
+		return parse_attribs(path, infos, toks.begin(), toks.end());
 	}
 
 	std::optional<class_constructor_info> parse_class_ctor(const fs::path &path, info_map &infos, clang::cursor c, class_info *cls){
@@ -409,6 +413,15 @@ namespace astpp::detail{
 		ret.type = std::move(member_type_str);
 		ret.ns = cls->ns;
 		ret.name = c.spelling();
+		ret.attributes = parse_member_attribs(path, infos, c);
+
+		std::string decl_str;
+
+		const auto toks = c.tokens();
+
+		for(auto &&tok : toks){
+			decl_str += " " + tok.str();
+		}
 
 		auto availability = clang_getCursorAvailability(c);
 		ret.is_accessable = availability == CXAvailability_Available || availability == CXAvailability_Deprecated;

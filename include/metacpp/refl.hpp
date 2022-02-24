@@ -352,6 +352,7 @@ namespace reflpp{
 
 		struct ref_info_helper: type_info_helper{
 			virtual type_info refered() const noexcept = 0;
+
 			void *construct(void *p, args_pack_base *args) const override{
 				if(args->size() != 0) return nullptr;
 				return p;
@@ -360,6 +361,7 @@ namespace reflpp{
 
 		struct ptr_info_helper: type_info_helper{
 			virtual type_info pointed() const noexcept = 0;
+
 			void *construct(void *p, args_pack_base *args) const override{
 				if(args->size() != 0) return nullptr;
 				return p;
@@ -405,7 +407,12 @@ namespace reflpp{
 			virtual type_info param_type(std::size_t idx) const noexcept = 0;
 		};
 
-		struct class_member_helper{};
+		struct class_member_helper{
+			virtual std::string_view name() const noexcept = 0;
+			virtual type_info type() const noexcept = 0;
+			virtual std::size_t num_attributes() const noexcept = 0;
+			virtual attribute_info attribute(std::size_t idx) const noexcept = 0;
+		};
 
 		struct class_method_helper{
 			virtual std::string_view name() const noexcept = 0;
@@ -416,7 +423,68 @@ namespace reflpp{
 		};
 
 		template<typename Cls, std::size_t Idx>
-		struct class_method_impl: class_method_helper{
+		struct class_member_impl final: class_member_helper{
+			using member_info = metapp::class_member<Cls, Idx>;
+
+			std::string_view name() const noexcept override{ return member_info::name; }
+
+			type_info type() const noexcept override{
+				static const auto ret = reflect<typename member_info::type>();
+				return ret;
+			}
+
+			std::size_t num_attributes() const noexcept override{
+				return member_info::attributes::size;
+			}
+
+			attribute_info attribute(std::size_t idx) const noexcept override{
+				using attributes = typename member_info::attributes;
+
+				if(idx >= num_attributes()) return nullptr;
+
+				attribute_info ret = nullptr;
+
+				metapp::for_all_i<attributes>([idx, &ret](auto info_type, auto info_idx){
+					if(ret || idx != info_idx){
+						return;
+					}
+
+					using info = metapp::get_t<decltype(info_type)>;
+
+					struct attribute_info_impl: attribute_info_helper{
+						std::string_view scope() const noexcept override{ return info::scope; }
+						std::string_view name() const noexcept override{ return info::name; }
+						std::size_t num_args() const noexcept override{ return info::args::size; }
+						std::string_view arg(std::size_t idx0) const noexcept override{
+							using arguments = typename info::args;
+
+							if(idx0 >= num_args()) return "";
+
+							std::string_view ret0;
+
+							metapp::for_all_i<arguments>([idx0, &ret0](auto info_type, auto info_idx){
+								if(!ret0.empty() || idx0 != info_idx){
+									return;
+								}
+
+								using argument = metapp::get_t<decltype(info_type)>;
+
+								ret0 = argument::value;
+							});
+
+							return ret0;
+						}
+					} static ret_val;
+
+					ret = &ret_val;
+				});
+
+				return ret;
+			}
+		};
+
+		template<typename Cls, std::size_t Idx>
+		struct class_method_impl final: class_method_helper{
 			using method_info = metapp::class_method<Cls, Idx>;
 
 			std::string_view name() const noexcept override{
@@ -488,11 +556,12 @@ namespace reflpp{
 			}
 		};
 
-		struct class_variable_helper{};
-
 		struct class_info_helper: type_info_helper{
 			virtual std::size_t num_methods() const noexcept = 0;
 			virtual const class_method_helper *method(std::size_t idx) const noexcept = 0;
+
+			virtual std::size_t num_members() const noexcept = 0;
+			virtual const class_member_helper *member(std::size_t idx) const noexcept = 0;
 
 			virtual std::size_t num_bases() const noexcept = 0;
 			virtual class_info base(std::size_t i) const noexcept = 0;
@@ -524,7 +593,7 @@ namespace reflpp{
 		};
 
 		template<typename T>
-		struct class_info_impl: info_helper_base<T, class_info_helper>{
+		struct class_info_impl final: info_helper_base<T, class_info_helper>{
 			using class_meta = metapp::class_info<T>;
 
 			std::size_t m_num_bases = 0;
@@ -602,6 +671,23 @@ namespace reflpp{
 
 					static const class_method_impl<T, metapp::get_v<decltype(info_idx)>> method_impl;
 					ret = &method_impl;
+				});
+
+				return ret;
+			}
+
+			std::size_t num_members() const noexcept override{ return class_meta::members::size; }
+
+			const class_member_helper *member(std::size_t idx) const noexcept override{
+				if(idx >= num_members()) return nullptr;
+
+				const class_member_helper *ret = nullptr;
+
+				metapp::for_all_i<metapp::members<T>>([idx, &ret](auto info_type, auto info_idx){
+					if(idx != info_idx) return;
+
+					static const class_member_impl<T, metapp::get_v<decltype(info_idx)>> member_impl;
+					ret = &member_impl;
 				});
 
 				return ret;
@@ -772,12 +858,15 @@ namespace reflpp{
 						class_info_impl(){ register_type(this); }
 
 						std::size_t num_methods() const noexcept override{ return 0; }
-						const class_method_helper *method(std::size_t idx) const noexcept override{ return nullptr; }
+						const class_method_helper *method(std::size_t) const noexcept override{ return nullptr; }
+
+						std::size_t num_members() const noexcept override{ return 0; }
+						const class_member_helper *member(std::size_t) const noexcept override{ return nullptr; }
 
 						std::size_t num_bases() const noexcept override{ return 0; }
-						class_info base(std::size_t i) const noexcept override{ return nullptr; }
+						class_info base(std::size_t) const noexcept override{ return nullptr; }
 
-						void *cast_to_base(void *self, std::size_t idx) const noexcept override{ return nullptr; }
+						void *cast_to_base(void *self, std::size_t) const noexcept override{ return nullptr; }
 
 						void *construct(void *p, args_pack_base *args) const override{
 							return nullptr;

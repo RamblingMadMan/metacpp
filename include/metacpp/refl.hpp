@@ -53,7 +53,6 @@ namespace reflpp{
 
 		struct class_member_helper;
 		struct class_method_helper;
-		struct class_variable_helper;
 
 		struct enum_value_helper;
 
@@ -104,7 +103,7 @@ namespace reflpp{
 	/**
 	 * @brief Handle to information about a class member.
 	 */
-	using class_variable_info = const detail::class_variable_helper*;
+	using class_member_info = const detail::class_member_helper*;
 
 	/**
 	 * @brief Try to dynamically get information about a type by name.

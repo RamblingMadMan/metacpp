@@ -411,6 +411,7 @@ namespace reflpp{
 			virtual type_info type() const noexcept = 0;
 			virtual std::size_t num_attributes() const noexcept = 0;
 			virtual attribute_info attribute(std::size_t idx) const noexcept = 0;
+			virtual void *get(void *self) const noexcept = 0;
 		};
 
 		struct class_method_helper{
@@ -479,6 +480,11 @@ namespace reflpp{
 				});
 
 				return ret;
+			}
+
+			void *get(void *self) const noexcept override{
+				auto p = reinterpret_cast<Cls*>(self);
+				return &member_info::get(*p);
 			}
 		};
 

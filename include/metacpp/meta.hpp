@@ -954,13 +954,12 @@ namespace metapp{
 		using ptr_type = type (class_::*);
 		using attributes = typename detail::class_member_info_data<Class, get_v<Idx>>::attributes;
 
-
 		static constexpr std::string_view name = detail::class_member_info_data<Class, get_v<Idx>>::name;
 		static constexpr auto ptr = detail::class_member_info_data<Class, get_v<Idx>>::ptr;
 
 		template<typename T>
-		static constexpr auto get(T &&cls){
-			return std::forward<T>(cls).*ptr;
+		static constexpr decltype(auto) get(T &&cls){
+			return (std::forward<T>(cls).*ptr);
 		}
 	};
 

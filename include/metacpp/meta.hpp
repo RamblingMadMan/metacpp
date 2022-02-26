@@ -1206,6 +1206,29 @@ namespace metapp{
 				}
 			}
 		};
+
+		template<typename Enum, typename Values>
+		struct get_value_name_helper;
+
+		template<typename Enum>
+		struct get_value_name_helper<Enum, types<>>{
+			static constexpr std::string_view get(Enum val){
+				throw std::logic_error("enum does not contain the value passed");
+				return "";
+			}
+		};
+
+		template<typename Enum, typename Value, typename ... Values>
+		struct get_value_name_helper<Enum, types<Value, Values...>>{
+			static constexpr std::string_view get(Enum val){
+				if(Value::value == val){
+					return Value::name;
+				}
+				else{
+					return get_value_name_helper<Enum, types<Values...>>::get(val);
+				}
+			}
+		};
 	}
 
 	/**
@@ -1216,6 +1239,16 @@ namespace metapp{
 	inline constexpr Enum get_value(const std::string_view name){
 		using info = enum_info<Enum>;
 		return detail::get_value_helper<Enum, typename info::values>::get(name);
+	}
+
+	/**
+	 * @brief Get the name of an enum value.
+	 * @param value Value to get the name of
+	 */
+	template<typename Enum>
+	inline constexpr std::string_view get_value_name(Enum value){
+		using info = enum_info<Enum>;
+		return detail::get_value_name_helper<Enum, typename info::values>::get(value);
 	}
 
 	/**

@@ -116,7 +116,6 @@ class [[test::attrib, foo::bar(1, "2", '3', 4.0, 5.f)]] TestClass2Attribs{
 class [[test::predefined]] TestPredefined{};
 
 [[other::attrib(with, "args")]]
-inline void testFn(int a, TestClass b){
-}
+inline void testFn(int a, TestClass b){}
 
 #endif // !TEST_TEST_HPP

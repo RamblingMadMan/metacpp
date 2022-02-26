@@ -856,11 +856,8 @@ namespace astpp::detail{
 		auto fn_type = c.type();
 		auto fn_type_str = fn_type.spelling();
 
-		{
-			auto result_type = clang_getResultType(fn_type);
-			auto result_type_str = clang::detail::convert_str(clang_getTypeSpelling(result_type));
-			ret.result_type = std::move(result_type_str);
-		}
+		clang::type result_type = clang_getResultType(fn_type);
+		ret.result_type = resolve_typename(result_type);
 
 		int num_params = clang_Cursor_getNumArguments(c);
 
@@ -873,7 +870,7 @@ namespace astpp::detail{
 				auto arg_type = arg_cursor.type();
 
 				auto arg_name = arg_cursor.spelling();
-				auto arg_type_name = arg_type.spelling();
+				auto arg_type_name = resolve_typename(arg_type);
 
 				ret.param_names.emplace_back(std::move(arg_name));
 				ret.param_types.emplace_back(std::move(arg_type_name));

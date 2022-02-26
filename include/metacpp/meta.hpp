@@ -1222,7 +1222,10 @@ namespace metapp{
 	 * @brief Get the number of values in an enum.
 	 */
 	template<typename Enum>
-	inline constexpr std::size_t num_enum_values = enum_info<Enum>::num_values;
+	inline constexpr std::size_t num_enum_values = enum_info<Enum>::values::size;
+
+	template<typename Enum>
+	inline constexpr std::size_t enum_length = num_enum_values<Enum>;
 
 	/**
 	 * @brief Get information about an enum value by index.

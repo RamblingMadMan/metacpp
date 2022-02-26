@@ -854,7 +854,7 @@ namespace astpp::detail{
 		ret.name = ns->name + "::" + c.spelling();
 
 		auto fn_type = c.type();
-		auto fn_type_str = fn_type.spelling();
+		auto fn_type_str = resolve_typename(fn_type);
 
 		clang::type result_type = clang_getResultType(fn_type);
 		ret.result_type = resolve_typename(result_type);

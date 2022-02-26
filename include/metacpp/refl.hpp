@@ -48,6 +48,7 @@ namespace reflpp{
 		struct num_info_helper;
 		struct int_info_helper;
 		struct function_info_helper;
+		struct fn_ptr_info_helper;
 		struct class_info_helper;
 		struct enum_info_helper;
 
@@ -84,6 +85,11 @@ namespace reflpp{
 	 * @brief Handle to information about a function.
 	 */
 	using function_info = const detail::function_info_helper*;
+
+	/**
+	 * @brief Handle to information about a function pointer.
+	 */
+	using fn_ptr_info = const detail::fn_ptr_info_helper*;
 
 	/**
 	 * @brief Handle to information about a class/struct.
@@ -365,6 +371,12 @@ namespace reflpp{
 				if(args->size() != 0) return nullptr;
 				return p;
 			}
+		};
+
+		struct fn_ptr_info_helper: type_info_helper{
+			virtual type_info result() const noexcept = 0;
+			virtual std::size_t num_parameters() const noexcept= 0;
+			virtual type_info parameter(std::size_t idx) const noexcept = 0;
 		};
 
 		type_info void_info() noexcept;
@@ -924,7 +936,7 @@ namespace reflpp{
 		};
 
 		template<typename T>
-		struct reflect_helper<T, std::enable_if_t<std::is_pointer_v<T>>>{
+		struct reflect_helper<T, std::enable_if_t<std::is_pointer_v<T> && !std::is_function_v<std::remove_pointer_t<T>>>>{
 			static type_info reflect(){
 				struct ptr_info_impl: ptr_info_helper{
 					ptr_info_impl(){ register_type(this); }
@@ -934,6 +946,42 @@ namespace reflpp{
 					void destroy(void *p) const noexcept override{ }
 					std::type_index type_index() const noexcept override{ return typeid(T); }
 					type_info pointed() const noexcept override{ static auto ret = reflpp::reflect<std::remove_pointer_t<T>>(); return ret; }
+				} static ret;
+				return &ret;
+			}
+		};
+
+		template<typename Ret, typename ... Args>
+		struct reflect_helper<Ret(*)(Args...), void>{
+			static fn_ptr_info reflect(){
+				struct fn_ptr_info_impl: fn_ptr_info_helper{
+					fn_ptr_info_impl(){ register_type(this); }
+					std::string_view name() const noexcept override{ return metapp::type_name<Ret(*)(Args...)>; }
+					std::size_t size() const noexcept override{ return sizeof(Ret(*)(Args...)); }
+					std::size_t alignment() const noexcept override{ return alignof(Ret(*)(Args...)); }
+					void destroy(void *p) const noexcept override{}
+					std::type_index type_index() const noexcept override{ return typeid(Ret(*)(Args...)); }
+					type_info result() const noexcept override{ return reflpp::reflect<Ret>(); }
+					std::size_t num_parameters() const noexcept override{ return sizeof...(Args); }
+					type_info parameter(std::size_t idx) const noexcept override{
+						if(idx >= sizeof...(Args)){
+							return nullptr;
+						}
+
+						type_info ret = nullptr;
+
+						metapp::for_all_i<meta::types<Args...>>([idx, &ret](auto info_type, auto index_value){
+							using type = metapp::get_t<decltype(info_type)>;
+							constexpr auto index = metapp::get_v<decltype(index_value)>;
+
+							if(ret) return;
+							else if(index == idx){
+								ret = reflpp::reflect<type>();
+							}
+						});
+
+						return ret;
+					}
 				} static ret;
 				return &ret;
 			}

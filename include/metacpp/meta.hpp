@@ -1184,6 +1184,9 @@ namespace metapp{
 		static constexpr bool is_scoped = detail::enum_info_data<Enum>::is_scoped;
 	};
 
+	template<typename Enum>
+	using enum_values = typename enum_info<Enum>::values;
+
 	namespace detail{
 		template<typename Enum, typename Values>
 		struct get_value_helper;

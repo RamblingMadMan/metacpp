@@ -871,7 +871,7 @@ namespace reflpp{
 		struct reflect_simple{
 			static auto reflect(){
 				if constexpr(std::is_class_v<T>){
-					struct class_info_impl: info_helper_base<T, class_info_helper>{
+					struct class_info_impl final: info_helper_base<T, class_info_helper>{
 						class_info_impl(){ register_type(this); }
 
 						std::size_t num_methods() const noexcept override{ return 0; }
@@ -892,7 +892,7 @@ namespace reflpp{
 					return &ret;
 				}
 				else{
-					struct type_info_impl: info_helper_base<T, type_info_helper>{
+					struct type_info_impl final: info_helper_base<T, type_info_helper>{
 						type_info_impl(){ register_type(this); }
 					} static ret;
 					return &ret;
@@ -922,7 +922,7 @@ namespace reflpp{
 		template<typename T>
 		struct reflect_helper<T, std::enable_if_t<std::is_reference_v<T>>>{
 			static type_info reflect(){
-				struct ref_info_impl: ref_info_helper{
+				struct ref_info_impl final: ref_info_helper{
 					ref_info_impl(){ register_type(this); }
 					std::string_view name() const noexcept override{ return metapp::type_name<T>; }
 					std::size_t size() const noexcept override{ return sizeof(void*); }
@@ -938,7 +938,7 @@ namespace reflpp{
 		template<typename T>
 		struct reflect_helper<T, std::enable_if_t<std::is_pointer_v<T> && !std::is_function_v<std::remove_pointer_t<T>>>>{
 			static type_info reflect(){
-				struct ptr_info_impl: ptr_info_helper{
+				struct ptr_info_impl final: ptr_info_helper{
 					ptr_info_impl(){ register_type(this); }
 					std::string_view name() const noexcept override{ return metapp::type_name<T>; }
 					std::size_t size() const noexcept override{ return sizeof(T); }
@@ -954,7 +954,7 @@ namespace reflpp{
 		template<typename Ret, typename ... Args>
 		struct reflect_helper<Ret(*)(Args...), void>{
 			static fn_ptr_info reflect(){
-				struct fn_ptr_info_impl: fn_ptr_info_helper{
+				struct fn_ptr_info_impl final: fn_ptr_info_helper{
 					fn_ptr_info_impl(){ register_type(this); }
 					std::string_view name() const noexcept override{ return metapp::type_name<Ret(*)(Args...)>; }
 					std::size_t size() const noexcept override{ return sizeof(Ret(*)(Args...)); }
@@ -981,6 +981,11 @@ namespace reflpp{
 						});
 
 						return ret;
+					}
+
+					void *construct(void *p, args_pack_base *args) const override{
+						if(args->size() != 0) return nullptr;
+						return new(p) (Ret(*)(Args...));
 					}
 				} static ret;
 				return &ret;

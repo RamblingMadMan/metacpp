@@ -19,9 +19,9 @@ set_target_properties(
 
 if(CMAKE_CROSSCOMPILING AND WIN32)
 	find_program(REFLPP_EXECUTABLE_RES reflpp REQUIRED)
-	set(REFLPP_EXECUTABLE ${REFLPP_EXECUTABLE_RES} PARENT_SCOPE)
+	set(REFLPP_EXECUTABLE ${REFLPP_EXECUTABLE_RES} CACHE STRING "Executable for reflecting targets")
 else()
-	set(REFLPP_EXECUTABLE reflpp PARENT_SCOPE)
+	set(REFLPP_EXECUTABLE reflpp CACHE STRING "Executable for reflecting targets")
 endif()
 
 add_executable(reflpp tool.cpp)

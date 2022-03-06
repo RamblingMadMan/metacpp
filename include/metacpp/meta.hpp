@@ -1224,7 +1224,7 @@ namespace metapp{
 		template<typename Enum, typename Value, typename ... Values>
 		struct get_value_name_helper<Enum, types<Value, Values...>>{
 			static constexpr std::string_view get(Enum val){
-				if(Value::value == val){
+				if(static_cast<Enum>(Value::value) == val){
 					return Value::name;
 				}
 				else{

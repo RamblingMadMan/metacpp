@@ -1112,10 +1112,18 @@ namespace reflpp{
 
 			value(const value&) = delete;
 
-			value(value &&other) noexcept
-				: m_type(std::exchange(other.m_type, nullptr))
-				, m_destroy_fn(std::exchange(other.m_destroy_fn, [](auto...){}))
-			{
+			template<typename Derived>
+			value(value<Derived> &&other) noexcept{
+				if constexpr(std::is_class_v<Base>){
+					static_assert(std::is_base_of_v<Base, Derived>);
+				}
+				else if constexpr(!std::is_same_v<Base, void>){
+					static_assert(std::is_same_v<Base, Derived>);
+				}
+
+				m_type = std::exchange(other.m_type, nullptr);
+				m_destroy_fn = std::exchange(other.m_destroy_fn, [](auto...){});
+
 				if(!m_type){
 					return;
 				}
@@ -1134,7 +1142,15 @@ namespace reflpp{
 
 			value &operator=(const value&) = delete;
 
-			value &operator=(value &&other) noexcept{
+			template<typename Derived>
+			value &operator=(value<Derived> &&other) noexcept{
+				if constexpr(std::is_class_v<Base>){
+					static_assert(std::is_base_of_v<Base, Derived>);
+				}
+				else if constexpr(!std::is_same_v<Base, void>){
+					static_assert(std::is_same_v<Base, Derived>);
+				}
+
 				if(this != &other){
 					destroy();
 

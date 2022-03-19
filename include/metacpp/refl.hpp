@@ -1112,8 +1112,8 @@ namespace reflpp{
 
 			value(const value&) = delete;
 
-			template<typename Derived>
-			value(value<Derived> &&other) noexcept{
+			template<typename Derived, template<typename> class AllocU>
+			value(value<Derived, AllocU> &&other) noexcept{
 				if constexpr(std::is_class_v<Base>){
 					static_assert(std::is_base_of_v<Base, Derived>);
 				}
@@ -1130,6 +1130,7 @@ namespace reflpp{
 
 				if(m_type->size() <= 16 && m_type->alignment() <= 16){
 					std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
+					//std::memset(other.m_storage.bytes, 0, m_type->size());
 				}
 				else{
 					m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);
@@ -1142,8 +1143,8 @@ namespace reflpp{
 
 			value &operator=(const value&) = delete;
 
-			template<typename Derived>
-			value &operator=(value<Derived> &&other) noexcept{
+			template<typename Derived, template<typename> class AllocU>
+			value &operator=(value<Derived, AllocU> &&other) noexcept{
 				if constexpr(std::is_class_v<Base>){
 					static_assert(std::is_base_of_v<Base, Derived>);
 				}
@@ -1160,6 +1161,7 @@ namespace reflpp{
 					if(m_type){
 						if(m_type->size() <= 16 && m_type->alignment() <= 16){
 							std::memcpy(m_storage.bytes, other.m_storage.bytes, m_type->size());
+							//std::memset(other.m_storage.bytes, 0, m_type->size());
 						}
 						else{
 							m_storage.pointer = std::exchange(other.m_storage.pointer, nullptr);

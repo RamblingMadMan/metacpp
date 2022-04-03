@@ -1300,6 +1300,9 @@ namespace reflpp{
 				void *pointer;
 				unsigned char bytes alignas(16)[16];
 			} m_storage;
+
+			template<typename UBase, template<typename> class AllocU>
+			friend class Value;
 	};
 }
 

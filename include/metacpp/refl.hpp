@@ -1302,7 +1302,7 @@ namespace reflpp{
 			} m_storage;
 
 			template<typename UBase, template<typename> class AllocU>
-			friend class Value;
+			friend class value;
 	};
 }
 

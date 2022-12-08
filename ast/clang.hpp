@@ -486,6 +486,10 @@ namespace astpp::clang{
 			translation_unit(CXIndex index, const fs::path &path, const std::vector<std::string> &options = {})
 				: handle(nullptr)
 			{
+				if(!fs::exists(path)){
+					throw std::runtime_error(fmt::format("File does not exist: {}", path.string()));
+				}
+
 				std::vector<const char*> option_cstrs;
 				option_cstrs.reserve(options.size());
 

@@ -88,9 +88,11 @@ elseif(NOT Boost_dll_FOUND)
 	message(WARNING "Could not find Boost::dll, trying to continue anyway")
 endif()
 
-find_package(fmt CONFIG)
+if(NOT TARGET fmt)
+	find_package(fmt CONFIG)
+endif()
 
-if(NOT fmt_FOUND)
+if(NOT TARGET fmt AND NOT fmt_FOUND)
 	FetchContent_Declare(
 		fmtlib
 		GIT_REPOSITORY https://github.com/fmtlib/fmt.git

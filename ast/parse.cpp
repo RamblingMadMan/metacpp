@@ -1070,12 +1070,33 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 		else options.erase(res);
 	}
 
-	std::unordered_set<std::string_view> standards;
+	std::string_view std_list[] = {
+		"gnu++20",
+		"c++20",
+		"gnu++17",
+		"c++17",
+		"gnu++11",
+		"c++11",
+	};
 
-	for(auto &&opt : options){
-		if(std::string_view(opt).substr(0, 5) == "-std="){
-			standards.emplace(opt);
-			standard_given = true;
+	auto cur_std = std::size(std_list) - 1;
+
+	for(std::string_view opt : options){
+		if(opt.substr(0, 5) == "-std="){
+			const auto std_str = opt.substr(5);
+
+			const auto std_res = std::find(std::begin(std_list), std::end(std_list), std_str);
+			if(std_res == std::end(std_list)){
+				fmt::print("Unrecognized standard: {}\n", std_str);
+				std::fflush(stdout);
+				continue;
+			}
+
+			const auto new_std = std::distance(std_list, std_res);
+
+			if(new_std < cur_std){
+				cur_std = new_std;
+			}
 		}
 	}
 
@@ -1084,9 +1105,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 		options.emplace_back(fmt::format("-I{}", dir_utf8));
 	}
 
-	if(!standard_given){
-		options.insert(options.begin(), "-std=c++17");
-	}
+	options.emplace_back(fmt::format("-std={}", std_list[cur_std]));
 
 	options.emplace_back("-Wno-ignored-optimization-argument");
 

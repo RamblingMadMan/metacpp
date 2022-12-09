@@ -274,7 +274,16 @@ namespace astpp{
 			std::unique_ptr<data> impl;
 	};
 
-	info_map parse(const std::filesystem::path &path, const compile_info &info, bool verbose = false);
+	info_map parse(
+		const std::filesystem::path &path,
+		const compile_info &info,
+		bool verbose
+		#ifndef NDEBUG
+			= true
+		#else
+			= false
+		#endif
+	);
 
 	std::string compiler_version();
 }

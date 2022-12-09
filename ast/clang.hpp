@@ -406,70 +406,74 @@ namespace astpp::clang{
 			compilation_database(compilation_database&&) = default;
 
 			std::vector<std::string> all_options() const{
-				std::vector<std::string> ret;
-
 				auto cmds = clang_CompilationDatabase_getAllCompileCommands(*this);
-				if(cmds){
-					auto num_commands = clang_CompileCommands_getSize(cmds);
-					ret.reserve(num_commands);
+				if(!cmds) return {};
 
-					for(unsigned int i = 0; i < num_commands; i++){
-						auto cmd = clang_CompileCommands_getCommand(cmds, i);
-						if(!cmd){
-							continue;
-						}
+				auto num_commands = clang_CompileCommands_getSize(cmds);
 
-						auto num_args = clang_CompileCommand_getNumArgs(cmd);
+				std::vector<std::string> ret;
+				ret.reserve(num_commands);
 
-						// always start from 1 and end 1 before the end
-						// head is compiler executable
-						// last is compiled file
-						for(unsigned int j = 1; j < (num_args - 1); j++){
-							auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
-							ret.emplace_back(std::move(arg));
-						}
+				for(unsigned int i = 0; i < num_commands; i++){
+					auto cmd = clang_CompileCommands_getCommand(cmds, i);
+					if(!cmd){
+						continue;
 					}
 
-					std::fflush(stdout);
+					auto num_args = clang_CompileCommand_getNumArgs(cmd);
 
-					clang_CompileCommands_dispose(cmds);
+					// always start from 1 and end 1 before the end
+					// head is compiler executable
+					// last is compiled file
+					for(unsigned int j = 1; j < (num_args - 1); j++){
+						auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
+						ret.emplace_back(std::move(arg));
+					}
 				}
+
+				if(ret.back() == "--"){
+					ret.erase(ret.rbegin().base());
+				}
+
+				clang_CompileCommands_dispose(cmds);
 
 				return ret;
 			}
 
 			std::vector<std::string> file_options(const fs::path &path) const{
-				std::vector<std::string> ret;
-
 				auto abs_path = fs::absolute(path);
 				auto abs_path_utf8 = abs_path.u8string();
 
 				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, abs_path_utf8.c_str());
-				if(cmds){
-					auto num_commands = clang_CompileCommands_getSize(cmds);
-					ret.reserve(num_commands);
+				if(!cmds) return {};
 
-					for(unsigned int i = 0; i < num_commands; i++){
-						auto cmd = clang_CompileCommands_getCommand(cmds, i);
-						if(!cmd){
-							continue;
-						}
+				auto num_commands = clang_CompileCommands_getSize(cmds);
 
-						auto num_args = clang_CompileCommand_getNumArgs(cmd);
+				std::vector<std::string> ret;
+				ret.reserve(num_commands);
 
-						// always start from 1 and end 1 before the end
-						// head is compiler executable
-						// last is compiled file
-						for(unsigned int j = 1; j < (num_args - 1); j++){
-							auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
-							ret.emplace_back(std::move(arg));
-						}
+				for(unsigned int i = 0; i < num_commands; i++){
+					auto cmd = clang_CompileCommands_getCommand(cmds, i);
+					if(!cmd){
+						continue;
 					}
 
-					std::fflush(stdout);
+					auto num_args = clang_CompileCommand_getNumArgs(cmd);
 
-					clang_CompileCommands_dispose(cmds);
+					// always start from 1 and end 1 before the end
+					// head is compiler executable
+					// last is compiled file
+					for(unsigned int j = 1; j < (num_args - 1); j++){
+						auto arg = clang::detail::convert_str(clang_CompileCommand_getArg(cmd, j));
+						ret.emplace_back(std::move(arg));
+					}
 				}
+
+				if(ret.back() == "--"){
+					ret.erase(ret.rbegin().base());
+				}
+
+				clang_CompileCommands_dispose(cmds);
 
 				return ret;
 			}

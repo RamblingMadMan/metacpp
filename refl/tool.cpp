@@ -157,7 +157,12 @@ int main(int argc, char *argv[]){
 		return EXIT_FAILURE;
 	}
 
-	bool verbose = false;
+	bool verbose
+	#ifndef NDEBUG
+		= true;
+	#else
+		= false;
+	#endif
 
 	fs::path output_dir = fs::path(argv[0]).parent_path();
 	std::string output_dir_utf8;
@@ -237,6 +242,11 @@ int main(int argc, char *argv[]){
 
 			headers.emplace_back(std::move(header));
 		}
+	}
+
+	if(verbose && !version_printed){
+		print_version();
+		version_printed = true;
 	}
 
 	if(build_dir.empty()){

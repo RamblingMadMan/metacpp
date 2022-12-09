@@ -1075,6 +1075,8 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 		"c++20",
 		"gnu++17",
 		"c++17",
+		"gnu++14",
+		"c++14",
 		"gnu++11",
 		"c++11",
 	};

@@ -11,7 +11,13 @@ add_library(metacpp-ast STATIC clang.hpp compile_info.cpp parse.cpp)
 add_library(metacpp::ast ALIAS metacpp-ast)
 add_library(metapp::ast ALIAS metacpp-ast)
 
-target_compile_features(metacpp-ast PUBLIC cxx_std_17)
+set_target_properties(
+	metacpp-ast PROPERTIES
+	C_STANDARD 17
+	CXX_STANDARD 17
+)
+
+target_compile_features(metacpp-ast PUBLIC c_std_17 cxx_std_17)
 
 target_link_libraries(
 	metacpp-ast PUBLIC metacpp::headers fmt::fmt-header-only

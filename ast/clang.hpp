@@ -405,14 +405,23 @@ namespace astpp::clang{
 
 			compilation_database(compilation_database&&) = default;
 
-			std::vector<std::string> all_options() const{
+			std::vector<std::string> all_options(const std::vector<std::string_view> &additional = {}) const{
 				auto cmds = clang_CompilationDatabase_getAllCompileCommands(*this);
-				if(!cmds) return {};
+				if(!cmds){
+					std::vector<std::string> ret;
+					ret.reserve(additional.size());
+
+					for(std::size_t i = 0; i < additional.size(); i++){
+						ret.emplace_back(additional[i]);
+					}
+
+					return ret;
+				}
 
 				auto num_commands = clang_CompileCommands_getSize(cmds);
 
 				std::vector<std::string> ret;
-				ret.reserve(num_commands);
+				ret.reserve(num_commands + additional.size());
 
 				for(unsigned int i = 0; i < num_commands; i++){
 					auto cmd = clang_CompileCommands_getCommand(cmds, i);
@@ -436,16 +445,29 @@ namespace astpp::clang{
 				}
 
 				clang_CompileCommands_dispose(cmds);
+
+				for(std::size_t i = 0; i < additional.size(); i++){
+					ret.emplace_back(additional[i]);
+				}
 
 				return ret;
 			}
 
-			std::vector<std::string> file_options(const fs::path &path) const{
+			std::vector<std::string> file_options(const fs::path &path, const std::vector<std::string_view> &additional = {}) const{
 				auto abs_path = fs::absolute(path);
-				auto abs_path_utf8 = abs_path.u8string();
+				auto abs_path_u8 = abs_path.u8string();
 
-				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, abs_path_utf8.c_str());
-				if(!cmds) return {};
+				auto cmds = clang_CompilationDatabase_getCompileCommands(*this, (const char*)abs_path_u8.c_str());
+				if(!cmds){
+					std::vector<std::string> ret;
+					ret.reserve(additional.size());
+
+					for(std::size_t i = 0; i < additional.size(); i++){
+						ret.emplace_back(additional[i]);
+					}
+
+					return ret;
+				}
 
 				auto num_commands = clang_CompileCommands_getSize(cmds);
 
@@ -474,6 +496,10 @@ namespace astpp::clang{
 				}
 
 				clang_CompileCommands_dispose(cmds);
+
+				for(std::size_t i = 0; i < additional.size(); i++){
+					ret.emplace_back(additional[i]);
+				}
 
 				return ret;
 			}

@@ -280,7 +280,7 @@ int main(int argc, char *argv[]){
 			std::async(std::launch::async, [&header, verbose, output_dir, &include_dirs, &compile_info]{
 				const auto abs_header = fs::absolute(header).string();
 
-				auto info = ast::parse(header, compile_info, verbose);
+				auto info = ast::parse(header, compile_info, {}, verbose);
 
 				auto file_output_dir = output_dir;
 

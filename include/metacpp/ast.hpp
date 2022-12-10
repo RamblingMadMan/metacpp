@@ -264,8 +264,8 @@ namespace astpp{
 			explicit compile_info(const std::filesystem::path &build_dir);
 			~compile_info();
 
-			std::vector<std::string> all_options() const;
-			std::vector<std::string> file_options(const std::filesystem::path &path) const;
+			std::vector<std::string> all_options(const std::vector<std::string_view> &add_args = {}) const;
+			std::vector<std::string> file_options(const std::filesystem::path &path, const std::vector<std::string_view> &add_args = {}) const;
 
 			std::vector<std::filesystem::path> all_include_dirs() const;
 			std::vector<std::filesystem::path> file_include_dirs(const std::filesystem::path &path) const;
@@ -277,6 +277,7 @@ namespace astpp{
 	info_map parse(
 		const std::filesystem::path &path,
 		const compile_info &info,
+		const std::vector<std::string_view> &cmd_args = {},
 		bool verbose
 		#ifndef NDEBUG
 			= true

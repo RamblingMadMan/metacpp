@@ -1004,7 +1004,7 @@ namespace astpp::detail{
 	}
 }
 
-ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool verbose){
+ast::info_map ast::parse(const fs::path &path, const compile_info &info, const std::vector<std::string_view> &cmd_args, bool verbose){
 	using namespace astpp;
 
 	auto path_utf8 = path.u8string();
@@ -1044,7 +1044,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, bool ve
 	};
 
 	auto include_dirs = info.all_include_dirs();
-	auto options = info.file_options(path);
+	auto options = info.file_options(path, cmd_args);
 
 	options.emplace_back("-DMETACPP_TOOL_RUN");
 

@@ -26,12 +26,12 @@ compile_info::compile_info(const fs::path &build_dir)
 
 compile_info::~compile_info(){}
 
-std::vector<std::string> compile_info::all_options() const{
-	return impl->db.all_options();
+std::vector<std::string> compile_info::all_options(const std::vector<std::string_view> &add_args) const{
+	return impl->db.all_options(add_args);
 }
 
-std::vector<std::string> compile_info::file_options(const std::filesystem::path &path) const{
-	return impl->db.file_options(path);
+std::vector<std::string> compile_info::file_options(const std::filesystem::path &path, const std::vector<std::string_view> &add_args) const{
+	return impl->db.file_options(path, add_args);
 }
 
 std::vector<std::filesystem::path> compile_info::all_include_dirs() const{

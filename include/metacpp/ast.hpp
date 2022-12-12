@@ -277,13 +277,24 @@ namespace astpp{
 	info_map parse(
 		const std::filesystem::path &path,
 		const compile_info &info,
-		const std::vector<std::string_view> &cmd_args = {},
+		std::vector<std::string> cmd_args = {},
 		bool verbose
 		#ifndef NDEBUG
 			= true
 		#else
 			= false
 		#endif
+	);
+
+	info_map parse(
+			const std::filesystem::path &path,
+			std::vector<std::string_view> compile_args,
+			bool verbose
+		#ifndef NDEBUG
+			= true
+		  #else
+			= false
+		  #endif
 	);
 
 	std::string compiler_version();

@@ -1004,13 +1004,11 @@ namespace astpp::detail{
 	}
 }
 
-ast::info_map ast::parse(const fs::path &path, const compile_info &info, const std::vector<std::string_view> &cmd_args, bool verbose){
+ast::info_map ast::parse(const fs::path &path, const compile_info &info, std::vector<std::string> cmd_args, bool verbose){
 	using namespace astpp;
 
 	auto path_utf8 = path.u8string();
 	auto abs_path = fs::absolute(path);
-
-	static clang::index index;
 
 	if(!fs::exists(path)){
 		auto msg = fmt::format("File '{}' does not exist", path_utf8);
@@ -1021,7 +1019,43 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, const s
 		throw std::runtime_error(msg);
 	}
 
-	auto retrieve = [&info](const std::string &p) -> std::pair<ast::info_map*, ast::clang::translation_unit*>{
+	auto include_dirs = info.all_include_dirs();
+
+	cmd_args.emplace_back("-DMETACPP_TOOL_RUN");
+
+	while(1){
+		auto res = std::find_if(
+			cmd_args.begin(), cmd_args.end(),
+			[](auto &&opt){
+				auto opt_prefix = std::string_view(opt).substr(0, 2);
+				return
+					(opt_prefix[0] == '@') || // @ at the start of response files (just in case)
+					(opt == "-flto") ||
+					(opt == "-Werror") ||
+					(opt == "-fno-fat-lto-objects") ||
+					(std::string_view(opt).substr(0, 9) == "--target=") ||
+					(std::string_view(opt).substr(0, 14) == "--driver-mode=")
+				;
+			}
+		);
+		if(res == cmd_args.end()) break;
+		else cmd_args.erase(res);
+	}
+
+	cmd_args.emplace_back("-c");
+	cmd_args.emplace_back("-x");
+	cmd_args.emplace_back("c++-header");
+
+	for(auto &&dir : include_dirs){
+		auto dir_utf8 = dir.u8string();
+		cmd_args.emplace_back(fmt::format("-I{}", dir_utf8));
+	}
+
+	cmd_args.emplace_back("-Wno-ignored-optimization-argument");
+
+	static clang::index index;
+
+	auto retrieve = [&cmd_args](const std::string &p) -> std::pair<ast::info_map*, ast::clang::translation_unit*>{
 		static std::unordered_map<std::string, std::pair<info_map, clang::translation_unit>> tus;
 
 		auto res = tus.find(p);
@@ -1033,7 +1067,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, const s
 			p,
 			std::piecewise_construct,
 			std::forward_as_tuple(),
-			std::forward_as_tuple(index, p, info.file_options(p))
+			std::forward_as_tuple(index, p, cmd_args)
 		);
 
 		if(!emplace_res.second){
@@ -1043,78 +1077,10 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, const s
 		return std::make_pair(&res->second.first, &res->second.second);
 	};
 
-	auto include_dirs = info.all_include_dirs();
-	auto options = info.file_options(path, cmd_args);
-
-	options.emplace_back("-DMETACPP_TOOL_RUN");
-
-	bool standard_given = false;
-
-	while(1){
-		auto res = std::find_if(
-			options.begin(), options.end(),
-			[](auto &&opt){
-				auto opt_prefix = std::string_view(opt).substr(0, 2);
-				return
-					(opt_prefix == "-I") ||
-					(opt_prefix[0] == '@') || // @ at the start of response files (just in case)
-					(opt == "-flto") ||
-					(opt == "-Werror") ||
-					(opt == "-fno-fat-lto-objects") ||
-					(std::string_view(opt).substr(0, 9) == "--target=") ||
-					(std::string_view(opt).substr(0, 14) == "--driver-mode=")
-				;
-			}
-		);
-		if(res == options.end()) break;
-		else options.erase(res);
-	}
-
-	std::string_view std_list[] = {
-		"gnu++20",
-		"c++20",
-		"gnu++17",
-		"c++17",
-		"gnu++14",
-		"c++14",
-		"gnu++11",
-		"c++11",
-	};
-
-	auto cur_std = std::size(std_list) - 1;
-
-	for(std::string_view opt : options){
-		if(opt.substr(0, 5) == "-std="){
-			const auto std_str = opt.substr(5);
-
-			const auto std_res = std::find(std::begin(std_list), std::end(std_list), std_str);
-			if(std_res == std::end(std_list)){
-				fmt::print("Unrecognized standard: {}\n", std_str);
-				std::fflush(stdout);
-				continue;
-			}
-
-			const auto new_std = std::distance(std_list, std_res);
-
-			if(new_std < cur_std){
-				cur_std = new_std;
-			}
-		}
-	}
-
-	for(auto &&dir : include_dirs){
-		auto dir_utf8 = dir.u8string();
-		options.emplace_back(fmt::format("-I{}", dir_utf8));
-	}
-
-	options.emplace_back(fmt::format("-std={}", std_list[cur_std]));
-
-	options.emplace_back("-Wno-ignored-optimization-argument");
-
 	if(verbose){
 		std::string options_str;
 
-		for(auto &&opt : options){
+		for(auto &&opt : cmd_args){
 			options_str += fmt::format(" {}", opt);
 		}
 
@@ -1126,7 +1092,7 @@ ast::info_map ast::parse(const fs::path &path, const compile_info &info, const s
 		std::fflush(stdout);
 	}
 
-	clang::translation_unit tu(index, path, options);
+	clang::translation_unit tu(index, path, cmd_args);
 
 	const unsigned int num_diag = clang_getNumDiagnostics(tu);
 

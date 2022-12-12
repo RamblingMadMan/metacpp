@@ -176,8 +176,9 @@ int main(int argc, char *argv[]){
 
 	bool version_printed = false;
 
-	for(int i = 1; i < argc; i++){
-		std::string_view arg = argv[i];
+	int argi = 1;
+	for(; argi < argc; argi++){
+		std::string_view arg = argv[argi];
 
 		if(arg == "-v" || arg == "--version"){
 			if(!version_printed){
@@ -186,14 +187,14 @@ int main(int argc, char *argv[]){
 			}
 		}
 		else if(arg == "-o"){
-			++i;
-			if(i == argc){
+			++argi;
+			if(argi == argc){
 				print_usage(argv[0], stderr);
 				return EXIT_FAILURE;
 			}
 
-			output_dir = fs::path(argv[i]);
-			output_dir_utf8 = output_dir.u8string();
+			output_dir = fs::path(argv[argi]);
+			output_dir_utf8 = output_dir.string();
 
 			if(!fs::exists(output_dir)){
 				if(!fs::create_directory(output_dir)){
@@ -214,9 +215,14 @@ int main(int argc, char *argv[]){
 				version_printed = true;
 			}
 		}
+		else if(arg == "--"){
+			// rest of args are for compiler
+			++argi;
+			break;
+		}
 		else if(build_dir.empty()){
 			build_dir = arg;
-			build_dir_utf8 = build_dir.u8string();
+			build_dir_utf8 = build_dir.string();
 
 			if(!fs::exists(build_dir)){
 				fmt::print(stderr, "build directory '{}' does not exist\n", build_dir_utf8);
@@ -232,11 +238,11 @@ int main(int argc, char *argv[]){
 			auto header_utf8 = header.u8string();
 
 			if(!fs::exists(header)){
-				fmt::print(stderr, "header '{}' does not exist\n", header_utf8);
+				fmt::print(stderr, "header '{}' does not exist\n", (const char*)header_utf8.c_str());
 				return EXIT_FAILURE;
 			}
 			else if(!fs::is_regular_file(header)){
-				fmt::print(stderr, "'{}' is not a header file\n", header_utf8);
+				fmt::print(stderr, "'{}' is not a header file\n", (const char*)header_utf8.c_str());
 				return EXIT_FAILURE;
 			}
 
@@ -275,12 +281,28 @@ int main(int argc, char *argv[]){
 	std::vector<std::future<void>> m_futs;
 	m_futs.reserve(headers.size());
 
+	std::vector<std::string> compile_args;
+
+	if(argi < argc){
+		compile_args.reserve(argc - argi);
+
+		std::transform(
+			argv + argi, argv + argc,
+			std::back_inserter(compile_args),
+			[](const char *arg) -> std::string{ return {arg}; }
+		);
+	}
+
+	for(const auto &arg : compile_args){
+		fmt::print(stderr, "Compiler arg: {}\n", arg);
+	}
+
 	for(const auto &header : headers){
 		m_futs.emplace_back(
-			std::async(std::launch::async, [&header, verbose, output_dir, &include_dirs, &compile_info]{
+			std::async(std::launch::async, [&header, &compile_args, verbose, output_dir, &include_dirs, &compile_info]{
 				const auto abs_header = fs::absolute(header).string();
 
-				auto info = ast::parse(header, compile_info, {}, verbose);
+				auto info = ast::parse(header, compile_info, compile_args, verbose);
 
 				auto file_output_dir = output_dir;
 
@@ -345,14 +367,14 @@ int main(int argc, char *argv[]){
 				auto out_header_dir_utf8 = out_header_dir.u8string();
 
 				if(!fs::exists(out_header_dir) && !fs::create_directories(out_header_dir)){
-					fmt::print(stderr, "could not create directory '{}'\n", out_header_dir_utf8);
+					fmt::print(stderr, "could not create directory '{}'\n", out_header_dir.string());
 					std::exit(EXIT_FAILURE);
 				}
 
 				{
 					std::ofstream out_source_file(out_source_path);
 					if(!out_source_file ){
-						fmt::print(stderr, "could not create output file '{}'\n", out_source_path_utf8);
+						fmt::print(stderr, "could not create output file '{}'\n", out_source_path.string());
 						std::exit(EXIT_FAILURE);
 					}
 
@@ -362,7 +384,7 @@ int main(int argc, char *argv[]){
 				{
 					std::ofstream out_header_file(out_header_path);
 					if(!out_header_file ){
-						fmt::print(stderr, "could not create output file '{}'\n", out_header_path_utf8);
+						fmt::print(stderr, "could not create output file '{}'\n", out_header_path.string());
 						std::exit(EXIT_FAILURE);
 					}
 
